@@ -639,20 +639,25 @@ var render = function () {
   }
 };
 
+var randPos = function ( value, size ) {
+  return _.random() ?
+    _.random( value + 50, size ) :
+    _.random( 0, value - 50 );
+};
+
 var restart = function () {
-  var i = ( asteroids.length = asteroids_length ) - 1;
+  var i = ( asteroids.length = asteroids_length ) - 1,
+      shipX = renderer.width * 0.5,
+      shipY = renderer.height * 0.5;
 
   for ( ; i >= 0; --i ) {
     asteroids[ i ] = new Asteroid(
-      _.random( renderer.width ),
-      _.random( renderer.height ),
+      randPos( shipX, renderer.width ),
+      randPos( shipY, renderer.height ),
       renderer );
   }
 
-  ship.location.set(
-    renderer.width * 0.5,
-    renderer.height * 0.5 );
-
+  ship.location.set( shipX, shipY );
   ship.velocity.set( 0, 0 );
   ship.acceleration.set( 0, 0 );
 };
