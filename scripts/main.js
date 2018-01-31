@@ -525,8 +525,8 @@ var update = function ( dt ) {
 
   if ( ui.hidden ) {
     if ( !touchable || stick.state !== 2 ) {
-      // PI / 2 per second
-      steering = pi * dt * 0.5;
+      // 0.75 PI per second
+      steering = pi * 0.75 * dt;
 
       if ( keys[ KEYS.LARR ] ) {
         ship.angle -= steering;
