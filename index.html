@@ -13,34 +13,17 @@
   <meta name="format-detection" content="adress=no" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="application-name" content="untitled" />
-  <meta name="apple-mobile-web-app-title" content="untitled" />
+  <meta name="application-name" content="Asteroids" />
+  <meta name="apple-mobile-web-app-title" content="Asteroids" />
   <meta name="theme-color" content="#000" />
   <meta name="msapplication-navbutton-color" content="#000" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <meta name="msapplication-starturl" content="index.html" />
   <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui, shrink-to-fit=no" />
-  <meta name="description" content="" />
-  <meta name="keywords" content="" />
-  <meta name="author" content="" />
-  <meta name="copyright" content="" />
-  <style>
-    @font-face {
-      font-family: UbuntuFont;
-      font-weight: 500;
-      src: url( 'fonts/Ubuntu-Medium.ttf' );
-    }
-
-    @font-face {
-      font-family: UbuntuFont;
-      font-weight: 400;
-      src: url( 'fonts/Ubuntu-Regular.ttf' );
-    }
-
-    body {
-      font-family: UbuntuFont, sans-serif;
-    }
-  </style>
+  <meta name="description" content="Atari 1979 Asteroids Game." />
+  <meta name="keywords" content="atari,1979,asteroids,game,silent,silent-tempest,tempest,github,pages,gh,javascript,html,css,js,gh-pages" />
+  <meta name="author" content="SILENT - https://github.com/silent-tempest/" />
+  <meta name="copyright" content="silent-tempest" />
   <link rel="stylesheet" href="styles/main.css" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" sizes="48x48" href="drawable/icon-48.png" />
@@ -54,6 +37,29 @@
 </head>
 
 <body>
+
+  <div id="overlay" class="active">
+    <div id="menu">
+      <h1>Asteroids</h1>
+
+      <h3>Rules</h3>
+
+      <ul>
+        <li><p>Do not touch Asteroids.</p></li>
+        <li><p>Use spacebar to shoot in Asteroids.</p></li>
+      </ul>
+
+      <h3>References</h3>
+
+      <ul>
+        <li><p><a href="https://en.m.wikipedia.org/wiki/Asteroids_%28video_game%29" target="_blank">Asteroids Game on Wikipedia</a>.</p></li>
+        <li><p>Idea from <a href="https://youtu.be/hacZU523FyM" target="_blank">Deniel Shiffman</a>.</p></li>
+        <li><p><a href="https://github.com/silent-tempest/Asteroids/" target="_blank">Source on GitHub</a>.</p></li>
+      </ul>
+
+      <button id="play">play</button>
+    </div>
+  </div>
 
   <noscript>
     <div>That application doesn't work without JavaScript.</div>

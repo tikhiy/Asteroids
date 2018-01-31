@@ -27,7 +27,7 @@ var bullets = [],
     // 300 shots per minute
     threshold = 60 / 300,
     time = threshold,
-    renderer, ship, stick, button;
+    renderer, ship, stick, button, ui;
 
 var KEYS = {
   SPACE: 32,
@@ -441,7 +441,7 @@ Ship.prototype = {
   xRadius: 15,
   yRadius: 10,
   angle: 0,
-  accelerationValue: 7.5,
+  accelerationValue: 5,
   constructor: Ship
 };
 
@@ -459,6 +459,14 @@ Ship.prototype.vertices = ( function () {
   return vertices;
 } )();
 
+var bar = function () {
+  if ( ui.hidden ) {
+    menu();
+  } else {
+    restart();
+  }
+};
+
 var update = function ( dt ) {
   var i, j, destroyed, bullet,
       asteroid, shoots, steering;
@@ -466,7 +474,7 @@ var update = function ( dt ) {
   i = asteroids.length - 1;
 
   if ( i < 0 ) {
-    return restart();
+    return bar();
   }
 
   for ( ; i >= 0; --i ) {
@@ -482,25 +490,27 @@ var update = function ( dt ) {
       ship.xRadius );
 
     if ( destroyed ) {
-      return restart();
+      return bar();
     }
   }
 
-  if ( !touchable || stick.state !== 2 ) {
-    steering = pi * 0.01;
+  if ( ui.hidden ) {
+    if ( !touchable || stick.state !== 2 ) {
+      steering = pi * 0.05;
 
-    if ( keys[ KEYS.LARR ] ) {
-      ship.angle -= steering;
-    } else if ( keys[ KEYS.RARR ] ) {
-      ship.angle += steering;
-    }
+      if ( keys[ KEYS.LARR ] ) {
+        ship.angle -= steering;
+      } else if ( keys[ KEYS.RARR ] ) {
+        ship.angle += steering;
+      }
 
-    if ( keys[ KEYS.UARR ] ) {
-      ship.accelerate( 1 );
+      if ( keys[ KEYS.UARR ] ) {
+        ship.accelerate( 1 );
+      }
+    } else {
+      ship.angle = stick.angle();
+      ship.accelerate( stick.value() );
     }
-  } else {
-    ship.angle = stick.angle();
-    ship.accelerate( stick.value() );
   }
 
   i = asteroids.length - 1;
@@ -511,16 +521,18 @@ var update = function ( dt ) {
 
   time += dt;
 
-  shoots = keys[ KEYS.SPACE ] ||
-    ( touchable && button.state );
+  if ( ui.hidden ) {
+    shoots = keys[ KEYS.SPACE ] ||
+      ( touchable && button.state );
 
-  if ( shoots && time > threshold ) {
-    bullets.push(
-      [ ship.location[ 0 ], ship.location[ 1 ], ship.angle, ship.velocity.copy() ],
-      [ ship.location[ 0 ], ship.location[ 1 ], ship.angle + pi * 0.6666, ship.velocity.copy() ],
-      [ ship.location[ 0 ], ship.location[ 1 ], ship.angle - pi * 0.6666, ship.velocity.copy() ] );
+    if ( shoots && time > threshold ) {
+      bullets.push(
+        [ ship.location[ 0 ], ship.location[ 1 ], ship.angle, ship.velocity.copy() ],
+        [ ship.location[ 0 ], ship.location[ 1 ], ship.angle + pi * 0.6666, ship.velocity.copy() ],
+        [ ship.location[ 0 ], ship.location[ 1 ], ship.angle - pi * 0.6666, ship.velocity.copy() ] );
 
-    time = 0;
+      time = 0;
+    }
   }
 
   i = bullets.length - 1;
@@ -610,9 +622,59 @@ var restart = function () {
   ship.location.set(
     renderer.width * 0.5,
     renderer.height * 0.5 );
+
+  ship.velocity.set( 0, 0 );
+  ship.acceleration.set( 0, 0 );
+};
+
+var play = function () {
+  restart();
+  ui.hide();
+};
+
+var menu = function () {
+  if ( ui.hidden ) {
+    ui.show();
+  }
+
+  restart();
+};
+
+var ui = {
+  init: _.once( function () {
+    var selectors = [
+      '#overlay',
+      '#menu',
+      '#play'
+    ];
+
+    var i = selectors.length - 1,
+        elements = {};
+
+    for ( ; i >= 0; --i ) {
+      elements[ selectors[ i ] ] = _( selectors[ i ] );
+    }
+
+    this.elements = elements;
+    elements[ '#play' ].click( play );
+  } ),
+
+  show: function () {
+    this.elements[ '#overlay' ].addClass( 'active' );
+    this.hidden = false;
+  },
+
+  hide: function () {
+    this.elements[ '#overlay' ].removeClass( 'active' );
+    this.hidden = true;
+  },
+
+  hidden: false
 };
 
 _( function ( _ ) {
+  ui.init();
+
   renderer = v6( {
     mode: 'webgl'
   } )
