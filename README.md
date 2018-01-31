@@ -1,2 +1,2 @@
 # Asteroids
-Asteroids game. Idea from Daniel Shiffman.
+[Asteroids game](https://en.wikipedia.org/wiki/Asteroids). Idea from [Daniel Shiffman](https://youtu.be/hacZU523FyM).

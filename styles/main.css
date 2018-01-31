@@ -1,0 +1,24 @@
+/**
+ * Native-Application experience
+ */
+* {
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+}
+
+body, canvas {
+  margin: 0;
+}
+
+body {
+  padding: 0;
+  position: relative;
+}
+
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
