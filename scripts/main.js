@@ -441,7 +441,7 @@ Ship.prototype = {
   xRadius: 15,
   yRadius: 10,
   angle: 0,
-  accelerationValue: 10,
+  accelerationValue: 7.5,
   constructor: Ship
 };
 
@@ -487,12 +487,12 @@ var update = function ( dt ) {
   }
 
   if ( !touchable || stick.state !== 2 ) {
-    steering = pi * 0.1;
+    steering = pi * 0.01;
 
     if ( keys[ KEYS.LARR ] ) {
-      ship.angle += steering;
-    } else if ( keys[ KEYS.RARR ] ) {
       ship.angle -= steering;
+    } else if ( keys[ KEYS.RARR ] ) {
+      ship.angle += steering;
     }
 
     if ( keys[ KEYS.UARR ] ) {
