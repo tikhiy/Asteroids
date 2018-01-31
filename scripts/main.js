@@ -303,9 +303,38 @@ if ( touchable ) {
     constructor: Stick
   };
 
-  _( window ).touchmove( function ( event ) {
-    event.preventDefault();
-  } );
+  /**
+   * Preventing "pull-to-refresh":
+   * https://stackoverflow.com/questions/29008194/
+   */
+  var touchstart = function ( e ) {
+    if ( e.touches.length == 1 ) {
+      lastY = e.touches[ 0 ].clientY;
+      preventRefresh = _( window ).scrollTop() == 0;
+    }
+  };
+
+  var touchmove = function ( e ) {
+    var touchY = e.touches[ 0 ].clientY,
+        dy = touchY - lastY;
+
+    if ( preventRefresh ) {
+      if ( dy > 0 ) {
+        // Why that executes but doesn't work?
+        e.preventDefault();
+      }
+
+      // To suppress pull-to-refresh it
+      // is sufficient to preventDefault
+      // the first overscrolling touchmove.
+      preventRefresh = false;
+    }
+
+    lastY = touchY;
+  };
+
+  var lastY = 0,
+      preventRefresh = false;
 }
 
 _( window )
@@ -496,7 +525,8 @@ var update = function ( dt ) {
 
   if ( ui.hidden ) {
     if ( !touchable || stick.state !== 2 ) {
-      steering = pi * 0.05;
+      // PI / 2 per second
+      steering = pi * dt * 0.5;
 
       if ( keys[ KEYS.LARR ] ) {
         ship.angle -= steering;
@@ -629,15 +659,16 @@ var restart = function () {
 
 var play = function () {
   restart();
-  ui.hide();
+
+  if ( !ui.hidden ) {
+    ui.hide();
+  }
 };
 
 var menu = function () {
   if ( ui.hidden ) {
     ui.show();
   }
-
-  restart();
 };
 
 var ui = {
@@ -683,6 +714,10 @@ _( function ( _ ) {
     .lineWidth( 2 );
 
   if ( touchable ) {
+    _( document.body )
+      .touchstart( touchstart )
+      .touchmove( touchmove );
+
     stick = new Stick( 0.5, 0.5, [ 0, 0, 0.5, 0.5 ] );
     button = new Button( -0.5, 0.5 );
   }
