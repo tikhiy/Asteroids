@@ -24,8 +24,8 @@ var bullets = [],
     keys = [],
     asteroids_length = 15,
     asteroids = Array( asteroids_length ),
-    // 300 shots per minute
-    threshold = 60 / 300,
+    // 600 shots per minute
+    threshold = 60 / 600,
     time = threshold,
     renderer, ship, stick, button, ui;
 
@@ -501,7 +501,7 @@ var bar = function () {
 };
 
 var update = function ( dt ) {
-  var i, j, destroyed, bullet,
+  var i, j, destroyed, bullet, angle,
       asteroid, shoots, steering;
 
   i = asteroids.length - 1;
@@ -560,10 +560,12 @@ var update = function ( dt ) {
       ( touchable && button.state );
 
     if ( shoots && time > threshold ) {
+      angle = 0.05;
+
       bullets.push(
         [ ship.location[ 0 ], ship.location[ 1 ], ship.angle, ship.velocity.copy() ],
-        [ ship.location[ 0 ], ship.location[ 1 ], ship.angle + pi * 0.6666, ship.velocity.copy() ],
-        [ ship.location[ 0 ], ship.location[ 1 ], ship.angle - pi * 0.6666, ship.velocity.copy() ] );
+        [ ship.location[ 0 ], ship.location[ 1 ], ship.angle + pi * angle, ship.velocity.copy() ],
+        [ ship.location[ 0 ], ship.location[ 1 ], ship.angle - pi * angle, ship.velocity.copy() ] );
 
       time = 0;
     }
@@ -729,6 +731,8 @@ _( function ( _ ) {
 
     stick = new Stick( 0.5, 0.5, [ 0, 0, 0.5, 0.5 ] );
     button = new Button( -0.5, 0.5 );
+  } else {
+    _( document.body ).addClass( 'desktop' );
   }
 
   ship = new Ship( 0, 0, renderer );
