@@ -304,7 +304,7 @@ if ( touchable ) {
   };
 
   /**
-   * Preventing "pull-to-refresh":
+   * Preventing "pull-down-to-refresh":
    * https://stackoverflow.com/questions/29008194/
    */
   var touchstart = function ( e ) {
@@ -339,7 +339,11 @@ if ( touchable ) {
 
 _( window )
   .keydown( function ( event ) {
-    keys[ event.keyCode ] = true;
+    if ( ui.hidden ) {
+      keys[ event.keyCode ] = true;
+    } else {
+      play();
+    }
   } )
   .keyup( function ( event ) {
     keys[ event.keyCode ] = false;
@@ -515,7 +519,7 @@ var update = function ( dt ) {
       asteroid.radius,
       ship.location[ 0 ],
       ship.location[ 1 ],
-      // max( xRadius, yRadius )
+      // max of xRadius, yRadius
       ship.xRadius );
 
     if ( destroyed ) {
