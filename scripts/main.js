@@ -2,7 +2,7 @@
 
 'use strict';
 
-var USE_CACHE = false;
+var USE_CACHE = true;
 
 if ( USE_CACHE && 'serviceWorker' in navigator ) {
   navigator.serviceWorker.register( 'service-worker.js' )

@@ -6,6 +6,7 @@ var paths = [
   'fonts/Ubuntu-Medium.ttf',
   'scripts/peako.js',
   'scripts/v6.js',
+  'scripts/platform.js',
   'scripts/main.js',
   'styles/main.css'
 ];
