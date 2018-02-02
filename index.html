@@ -40,7 +40,7 @@
 
   <div id="overlay" class="active">
     <div id="menu">
-      <h1 onclick="this.added || _( this ).after( '<p>I\'m lazy to optimize it.</p>' ) && ( this.added = true );">Asteroids</h1>
+      <h1 onclick="this.count ? this.count < 5 ? ++this.count : this.count++ === 5 && _( this ).after( '<p>I\'m lazy to optimize it.</p>' ) : this.count = 2;">Asteroids</h1>
 
       <h2>Rules</h2>
 

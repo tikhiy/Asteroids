@@ -16,7 +16,7 @@ if ( USE_CACHE && 'serviceWorker' in navigator ) {
 var root = document.documentElement,
     MINIMAP_SIZE;
 
-if ( root.clientWidth > 1280 && root.clientHeight > 1280 ) {
+if ( root.clientWidth > 960 && root.clientHeight > 960 ) {
   MINIMAP_SIZE = 200;
 } else {
   MINIMAP_SIZE = 100;
@@ -30,7 +30,7 @@ var pi = Math.PI,
     max = Math.max,
     abs = Math.abs;
 
-// map width and height
+// width and height of the map
 var w = 2500,
     h = 2500;
 
@@ -798,9 +798,7 @@ _( function ( _ ) {
   minimap = new v6.Renderer2D( {
     width : MINIMAP_SIZE,
     height: MINIMAP_SIZE
-  } )
-    .stroke( 255 )
-    .lineWidth( 4 );
+  } );
 
   minimap.canvas.style.top =
     minimap.canvas.style.left = '16px';
