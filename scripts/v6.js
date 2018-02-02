@@ -80,7 +80,7 @@ var support = {
 };
 
 var v6 = function ( options ) {
-  if ( ( options && options.mode || default_options.mode ) === 'webgl' ) {
+  if ( ( options && options.mode || default_options.renderer.mode ) === 'webgl' ) {
     if ( support.webgl ) {
       return new RendererWebGL( options );
     }
@@ -96,47 +96,60 @@ var settings = {
 };
 
 var default_options = {
-  settings: {
-    /** Pixel density of context. */
-    scale: 1,
+  renderer: {
+    settings: {
+      /** Pixel density of context. */
+      scale: 1,
+
+      /**
+       * MDN: Can be set to change if images are smoothed
+       * https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/imageSmoothingEnabled
+       */
+      smooth: false,
+
+      colorMode: 'rgba'
+    },
+
+    /** One of: "2d", "webgl". */
+    mode: '2d',
 
     /**
-     * Only for "2d" renderer.
-     * MDN: Can be set to change if images are smoothed
-     * https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/imageSmoothingEnabled
+     * MDN: Boolean that indicates if
+     * the canvas contains an alpha channel.
+     * If set to false, the browser now knows
+     * that the backdrop is always opaque,
+     * which can speed up drawing of transparent
+     * content and images.
+     * https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
      */
-    smooth: false,
+    alpha: true,
 
-    colorMode: 'rgba'
+    /**
+     * If true, the renderer will
+     * be added to the DOM.
+     */
+    append: true
   },
 
-  /** One of: "2d", "webgl". */
-  mode: '2d',
-
-  /**
-   * MDN: Boolean that indicates if
-   * the canvas contains an alpha channel.
-   * If set to false, the browser now knows
-   * that the backdrop is always opaque,
-   * which can speed up drawing of transparent
-   * content and images.
-   * https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
-   */
-  alpha: true,
-
-  /**
-   * If true, the renderer will
-   * be added to the DOM.
-   */
-  append: true
+  camera: {
+    speed: 1
+  }
 };
 
 /**
  * v6.map( 20, 0, 100, 0, 1 ); // -> 0.2
  * v6.map( -0.1, -1, 1, 0, 10 ) // -> 4.5
  */
-var map = function ( value, start1, stop1, start2, stop2 ) {
-  return ( ( value - start1 ) / ( stop1 - start1 ) ) * ( stop2 - start2 ) + start2;
+var map = function ( value, start1, stop1, start2, stop2, clamp ) {
+  value = ( ( value - start1 ) / ( stop1 - start1 ) ) * ( stop2 - start2 ) + start2;
+
+  if ( clamp ) {
+    return start2 < stop2 ?
+      scotch.clamp( value, start2, stop2 ) :
+      scotch.clamp( value, stop2, start2 );
+  }
+
+  return value;
 };
 
 /**
@@ -155,7 +168,7 @@ var lerp_color = function ( a, b, value ) {
 };
 
 var shade = function ( hsl, percent ) {
-  return hsl[ 2 ] = _.clamp( floor( hsl[ 2 ] + percent ), 0, 100 ), hsl;
+  return hsl[ 2 ] = scotch.clamp( floor( hsl[ 2 ] + percent ), 0, 100 ), hsl;
 };
 
 /**
@@ -233,7 +246,8 @@ var filters = {
         g, b;
 
     for ( ; r >= 0; r -= 4 ) {
-      data[ r ] = data[ g = r + 1 ] = data[ b = r + 2 ] = ( data[ r ] * 299 + data[ g ] * 587 + data[ b ] * 114 ) / 1000;
+      data[ r ] = data[ g = r + 1 ] = data[ b = r + 2 ] =
+        data[ r ] * 0.299 + data[ g ] * 0.587 + data[ b ] * 0.114;
     }
 
     return data;
@@ -804,6 +818,11 @@ var compact_match = function ( match ) {
     [ match[ 4 ], match[ 5 ], match[ 6 ], match[ 7 ] ] :
     [ match[ 1 ], match[ 2 ], match[ 3 ] ];
 };
+
+// I want to make that the methods
+// of RGBA and HSLA prototypes change
+// the objects on which they are called.
+// For example, shade, lerp, darken, lighten...
 
 var rgba = function ( r, g, b, a ) {
   return new RGBA( r, g, b, a );
@@ -1377,7 +1396,13 @@ Renderer2D.prototype.pixelDensity = function ( value ) {
 };
 
 Renderer2D.prototype.push = function () {
-  return this.saves.push( clone_style( this.style, { fillStyle: {}, font: {}, strokeStyle: {} } ) ), this;
+  this.saves.push( clone_style( this.style, {
+    fillStyle: {},
+    font: {},
+    strokeStyle: {}
+  } ) );
+
+  return this;
 };
 
 Renderer2D.prototype.pop = function () {
@@ -1792,6 +1817,24 @@ Renderer2D.prototype._stroke = function () {
   return this;
 };
 
+Renderer2D.prototype.camera = function ( options ) {
+  options = scotch.assign( {
+    offset: new Vector2D( this.width * 0.5, this.height * 0.5 )
+  }, options );
+
+  return new Camera( options );
+};
+
+Renderer2D.prototype.setTransformFromCamera = function ( camera ) {
+  return this.setTransform(
+    camera.scale[ 0 ],
+    0,
+    0,
+    camera.scale[ 0 ],
+    camera.location[ 0 ] * camera.scale[ 0 ],
+    camera.location[ 1 ] * camera.scale[ 0 ] );
+};
+
 scotch.forInRight( {
   fontVariant: 'variant', fontStyle: 'style',
   fontWeight:  'weight',  fontSize:  'size',
@@ -1801,7 +1844,7 @@ scotch.forInRight( {
 }, Renderer2D.prototype );
 
 scotch.forEachRight( [
-  'scale',  'translate', 'moveTo', 'lineTo', 'setTransform'
+  'scale',  'translate', 'moveTo', 'lineTo', 'setTransform', 'transform'
 ], function ( name ) {
   this[ name ] = Function( 'a, b, c, d, e, f', 'return this.context.' + name + '( a, b, c, d, e, f ), this;' );
 }, Renderer2D.prototype );
@@ -1820,7 +1863,7 @@ scotch.forInRight( { fill: 'fillStyle', stroke: 'strokeStyle' }, function ( name
   this[ method_name ] = function ( a, b, c, d ) {
     if ( a === undefined ) {
       this[ _method_name ]();
-    } else if ( a !== true && a !== false ) {
+    } else if ( typeof a != 'boolean' ) {
       this.style[ do_style ] = true;
 
       if ( typeof a != 'string' && this.style[ name ].type === this.settings.colorMode ) {
@@ -2117,6 +2160,19 @@ Transform.prototype.scale = function ( x, y ) {
   return mat3.scale( this.matrix, x, y ), this;
 };
 
+Transform.prototype.transform = function ( m11, m12, m21, m22, dx, dy ) {
+  var matrix = this.matrix;
+  matrix[ 0 ] *= m11;
+  matrix[ 1 ] *= m21;
+  matrix[ 2 ] *= dx;
+  matrix[ 3 ] *= m12;
+  matrix[ 4 ] *= m22;
+  matrix[ 5 ] *= dy;
+  matrix[ 6 ] = 0;
+  matrix[ 7 ] = 0;
+  return this;
+};
+
 /* MATRIX3 */
 
 var mat3 = {
@@ -2131,27 +2187,6 @@ var mat3 = {
   setIdentity: function ( m1 ) {
     m1[ 0 ] = m1[ 4 ] = m1[ 8 ] = 1;
     m1[ 1 ] = m1[ 2 ] = m1[ 3 ] = m1[ 5 ] = m1[ 6 ] = m1[ 7 ] = 0;
-    return m1;
-  },
-
-  // from webgl-2d
-  mult: function ( m1, m2 ) {
-    var m10 = m1[ 0 ], m11 = m1[ 1 ], m12 = m1[ 2 ],
-        m13 = m1[ 3 ], m14 = m1[ 4 ], m15 = m1[ 5 ],
-        m16 = m1[ 6 ], m17 = m1[ 7 ], m18 = m1[ 8 ],
-        m20 = m2[ 0 ], m21 = m2[ 1 ], m22 = m2[ 2 ],
-        m23 = m2[ 3 ], m24 = m2[ 4 ], m25 = m2[ 5 ],
-        m26 = m2[ 6 ], m27 = m2[ 7 ], m28 = m2[ 8 ];
-
-    m1[ 0 ] = m20 * m10 + m23 * m11 + m26 * m12;
-    m1[ 1 ] = m21 * m10 + m24 * m11 + m27 * m12;
-    m1[ 2 ] = m22 * m10 + m25 * m11 + m28 * m12;
-    m1[ 3 ] = m20 * m13 + m23 * m14 + m26 * m15;
-    m1[ 4 ] = m21 * m13 + m24 * m14 + m27 * m15;
-    m1[ 5 ] = m22 * m13 + m25 * m14 + m28 * m15;
-    m1[ 6 ] = m20 * m16 + m23 * m17 + m26 * m18;
-    m1[ 7 ] = m21 * m16 + m24 * m17 + m27 * m18;
-    m1[ 8 ] = m22 * m16 + m25 * m17 + m28 * m18;
     return m1;
   },
 
@@ -2481,7 +2516,7 @@ var create_polygon = function ( n ) {
 };
 
 RendererWebGL.prototype._polygon = function ( x, y, rx, ry, resolution, angle, degrees ) {
-  if ( angle && degrees ) {
+  if ( degrees && angle ) {
     angle *= pi / 180;
   }
 
@@ -2550,6 +2585,10 @@ RendererWebGL.prototype.setTransform = function ( a, b, c, d, e, f ) {
   return this.matrix.set( a, b, c, d, e, f ), this;
 };
 
+RendererWebGL.prototype.transform = function ( a, b, c, d, e, f ) {
+  return this.matrix.transform( a, b, c, d, e, f ), this;
+};
+
 RendererWebGL.prototype.noFill = Renderer2D.prototype.noFill;
 RendererWebGL.prototype.noStroke = Renderer2D.prototype.noStroke;
 RendererWebGL.prototype.beginShape = Renderer2D.prototype.beginShape;
@@ -2576,19 +2615,43 @@ RendererWebGL.prototype.point = function ( x, y ) {
     .pop();
 };
 
-var create_renderer = function ( renderer, mode, options ) {
+RendererWebGL.prototype.getImageData = function ( x, y, w, h ) {
+  var gl = this.context,
+      pixels = new Uint8ClampedArray( w * h * 4 );
+
+  gl.readPixels( x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels );
+  return new ImageData( pixels, w, h );
+};
+
+// As I understand it, I need textures.
+RendererWebGL.prototype.putImageData = function ( /* imageData, x, y, sx, sy, sw, sh */ ) {
+  return this;
+};
+
+RendererWebGL.prototype.camera = Renderer2D.prototype.camera;
+RendererWebGL.prototype.setTransformFromCamera = Renderer2D.prototype.setTransformFromCamera;
+
+var defaults = function ( options, defaults ) {
   if ( options === undefined ) {
-    options = scotch.clone( true, default_options );
+    options = scotch.clone( true, defaults );
   } else {
-    options = scotch.defaults( default_options, options );
+    options = scotch.defaults( defaults, options );
   }
 
+  return options;
+};
+
+var create_renderer = function ( renderer, mode, options ) {
+  options = defaults( options, default_options.renderer );
   renderer.settings = options.settings;
   renderer.mode = mode;
   renderer.index = ++renderer_index;
   renderer.saves = [];
   renderer.vertices = [];
-  renderer.state = { beginPath: false };
+
+  renderer.state = {
+    beginPath: false
+  };
 
   if ( !options.canvas ) {
     renderer.canvas = document.createElement( 'canvas' );
@@ -2636,7 +2699,58 @@ var create_renderer = function ( renderer, mode, options ) {
   }
 };
 
+/* CAMERA */
+
+var Camera = function ( options ) {
+  options = defaults( options, default_options.camera );
+
+  // float between 0 and 1
+  // 1 when camera should be "fixed"
+  // 0.1 camera will be smooth
+  this.speed = options.speed;
+
+  this.scale = options.scale || [
+    1, // scale
+    1, // min scale
+    1  // max scale
+  ];
+
+  this.offset = options.offset || new v6.Vector2D();
+
+  this.location = [
+    0, 0, // current location
+    0, 0  // location of the object to be viewed
+  ];
+};
+
+Camera.prototype = {
+  // how to use delta time here?
+  update: function ( /* dt */ ) {
+    var loc = this.location,
+        spd = this.speed;
+
+    if ( loc[ 0 ] !== loc[ 2 ] ) {
+      loc[ 0 ] += ( loc[ 2 ] - loc[ 0 ] ) * spd;
+    }
+
+    if ( loc[ 1 ] !== loc[ 3 ] ) {
+      loc[ 1 ] += ( loc[ 3 ] - loc[ 1 ] ) * spd;
+    }
+
+    return this;
+  },
+
+  lookAt: function ( at ) {
+    this.location[ 2 ] = -at[ 0 ] + this.offset[ 0 ] / this.scale[ 0 ];
+    this.location[ 3 ] = -at[ 1 ] + this.offset[ 1 ] / this.scale[ 0 ];
+    return this;
+  },
+
+  constructor: Camera
+};
+
 v6.Ticker = Ticker;
+v6.Camera = Camera;
 v6.Vector2D = Vector2D;
 v6.Vector3D = Vector3D;
 v6.RGBA = RGBA;

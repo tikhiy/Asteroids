@@ -13,21 +13,35 @@ if ( USE_CACHE && 'serviceWorker' in navigator ) {
     } );
 }
 
+var root = document.documentElement,
+    MINIMAP_SIZE;
+
+if ( root.clientWidth > 1280 && root.clientHeight > 1280 ) {
+  MINIMAP_SIZE = 200;
+} else {
+  MINIMAP_SIZE = 100;
+}
+
 var pi = Math.PI,
     cos = Math.cos,
     sin = Math.sin,
     sqrt = Math.sqrt,
     min = Math.min,
-    max = Math.max;
+    max = Math.max,
+    abs = Math.abs;
+
+// map width and height
+var w = 2500,
+    h = 2500;
 
 var bullets = [],
     keys = [],
-    asteroids_length = 15,
-    asteroids = Array( asteroids_length ),
-    // 600 shots per minute
-    threshold = 60 / 600,
+    asteroidsLength = 175,
+    asteroids = Array( asteroidsLength ),
+    // 400 shots per minute
+    threshold = 60 / 400,
     time = threshold,
-    renderer, ship, stick, button, ui;
+    renderer, ship, stick, button, camera, minimap;
 
 var KEYS = {
   SPACE: 32,
@@ -380,27 +394,40 @@ Asteroid.prototype = {
   update: function ( dt ) {
     this.location.add( this.velocity.copy().mult( dt ) );
 
-    if ( this.location[ 0 ] < 0 ) {
-      this.location[ 0 ] = this.renderer.width;
-    } else if ( this.location[ 0 ] > this.renderer.width ) {
-      this.location[ 0 ] = 0;
+    if ( this.location[ 0 ] < this.radius ) {
+      this.location[ 0 ] = this.radius;
+      this.velocity[ 0 ] *= -1;
+    } else if ( this.location[ 0 ] + this.radius > w ) {
+      this.location[ 0 ] = w - this.radius;
+      this.velocity[ 0 ] *= -1;
     }
 
-    if ( this.location[ 1 ] < 0 ) {
-      this.location[ 1 ] = this.renderer.height;
-    } else if ( this.location[ 1 ] > this.renderer.height ) {
-      this.location[ 1 ] = 0;
+    if ( this.location[ 1 ] < this.radius ) {
+      this.location[ 1 ] = this.radius;
+      this.velocity[ 1 ] *= -1;
+    } else if ( this.location[ 1 ] + this.radius > h ) {
+      this.location[ 1 ] = h - this.radius;
+      this.velocity[ 1 ] *= -1;
     }
 
     return this;
   },
 
   show: function () {
-    this.renderer
-      .save()
-      .setTransform( this.radius, 0, 0, this.radius, this.location[ 0 ], this.location[ 1 ] )
-      .drawVertices( this.vertices, this.vertices.length * 0.5 )
-      .restore();
+    var x = this.location[ 0 ],
+        y = this.location[ 1 ],
+        scl = camera.scale[ 0 ];
+
+    if ( abs( ship.location[ 0 ] - x ) < renderer.width / scl &&
+         abs( ship.location[ 1 ] - y ) < renderer.height / scl )
+    {
+      this.renderer
+        .save()
+        .translate( x, y )
+        .scale( this.radius, this.radius )
+        .drawVertices( this.vertices, this.vertices.length * 0.5 )
+        .restore();
+    }
 
     return this;
   },
@@ -428,7 +455,9 @@ Ship.prototype = {
       .translate( this.location[ 0 ], this.location[ 1 ] )
       .rotate( this.angle )
       .scale( this.xRadius, this.yRadius )
+      .fill( true )
       .drawVertices( this.vertices, this.n )
+      .noFill()
       .restore();
 
     return this;
@@ -447,16 +476,18 @@ Ship.prototype = {
     this.velocity.add( this.acceleration );
     this.acceleration.mult( 0 );
 
-    if ( this.location[ 0 ] < 0 ) {
-      this.location[ 0 ] += this.renderer.width;
-    } else if ( this.location[ 0 ] > this.renderer.width ) {
-      this.location[ 0 ] -= this.renderer.width;
+    if ( this.location[ 0 ] > w ) {
+      this.location[ 0 ] = w;
+      this.velocity[ 0 ] = 0;
+    } else if ( this.location[ 0 ] < 0 ) {
+      this.location[ 0 ] = this.velocity[ 0 ] = 0;
     }
 
-    if ( this.location[ 1 ] < 0 ) {
-      this.location[ 1 ] += this.renderer.height;
-    } else if ( this.location[ 1 ] > this.renderer.height ) {
-      this.location[ 1 ] -= this.renderer.height;
+    if ( this.location[ 1 ] > h ) {
+      this.location[ 1 ] = h;
+      this.velocity[ 1 ] = 0;
+    } else if ( this.location[ 1 ] < 0 ) {
+      this.location[ 1 ] = this.velocity[ 1 ] = 0;
     }
 
     if ( this.velocity.mag() < 1 ) {
@@ -580,9 +611,9 @@ var update = function ( dt ) {
 
     // If bullet not out of screen.
     if ( bullet[ 0 ] >= 0 &&
-      bullet[ 0 ] <= renderer.width &&
+      bullet[ 0 ] <= w &&
       bullet[ 1 ] >= 0 &&
-      bullet[ 1 ] <= renderer.height )
+      bullet[ 1 ] <= h )
     {
       for ( j = asteroids.length - 1; j >= 0; --j ) {
         asteroid = asteroids[ j ];
@@ -613,17 +644,49 @@ var update = function ( dt ) {
 
   ship.update( dt );
   ship.velocity.mult( 0.9875 );
+  // camera.scale[ 0 ] = v6.map( ship.velocity.mag(),
+  //   0, 200, camera.scale[ 2 ], camera.scale[ 1 ], true );
+
+  camera
+    .lookAt( ship.location )
+    .update( dt );
 };
 
 var render = function () {
-  var i;
+  var shipX = ship.location[ 0 ],
+      shipY = ship.location[ 1 ],
+      i = asteroids.length - 1,
+      r = minimap.width * 0.5,
+      asteroid, x, y;
 
-  renderer.backgroundColor( 0 );
+  minimap
+    .clear()
+    .noStroke()
+    .fill( 255, 255, 255, 0.2 )
+    .arc( r, r, r )
+    .stroke( 255, 0, 0 )
+    .lineWidth( 5 )
+    .point( r, r )
+    .lineWidth( 3 )
+    .stroke( 255 );
+
+  renderer
+    .restore()
+    .backgroundColor( 0 )
+    .save()
+    .setTransformFromCamera( camera )
+    .rect( 0, 0, w, h );
+
   ship.show();
-  i = asteroids.length - 1;
 
   for ( ; i >= 0; --i ) {
-    asteroids[ i ].show();
+    asteroid = asteroids[ i ].show();
+    x = ( asteroid.location[ 0 ] - shipX ) * 0.06;
+    y = ( asteroid.location[ 1 ] - shipY ) * 0.06;
+
+    if ( sqrt( x * x + y * y ) < r ) {
+      minimap.point( r + x, r + y );
+    }
   }
 
   if ( touchable ) {
@@ -652,14 +715,14 @@ var randPos = function ( value, size ) {
 };
 
 var restart = function () {
-  var i = ( asteroids.length = asteroids_length ) - 1,
-      shipX = renderer.width * 0.5,
-      shipY = renderer.height * 0.5;
+  var i = ( asteroids.length = asteroidsLength ) - 1,
+      shipX = w * 0.5,
+      shipY = h * 0.5;
 
   for ( ; i >= 0; --i ) {
     asteroids[ i ] = new Asteroid(
-      randPos( shipX, renderer.width ),
-      randPos( shipY, renderer.height ),
+      randPos( shipX, w ),
+      randPos( shipY, h ),
       renderer );
   }
 
@@ -717,12 +780,30 @@ var ui = {
 _( function ( _ ) {
   ui.init();
 
-  renderer = v6( {
-    mode: 'webgl'
+  renderer = new v6.RendererWebGL()
+    .stroke( 255 )
+    .fill( 255 )
+    .lineWidth( 2 );
+
+  camera = renderer.camera( {
+    scale: [
+      0.6, // scale
+      0.6, // min scale
+      1    // max scale
+    ],
+
+    speed: 0.05 // smooth camera
+  } );
+
+  minimap = new v6.Renderer2D( {
+    width : MINIMAP_SIZE,
+    height: MINIMAP_SIZE
   } )
     .stroke( 255 )
-    .noFill()
-    .lineWidth( 2 );
+    .lineWidth( 4 );
+
+  minimap.canvas.style.top =
+    minimap.canvas.style.left = '16px';
 
   if ( touchable ) {
     _( document.body )
