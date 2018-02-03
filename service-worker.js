@@ -1,4 +1,4 @@
-var cache_name = 'v1';
+var cache_name = '0.650554143038383';
 
 var paths = [
   'index.html',

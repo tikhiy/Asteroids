@@ -71,6 +71,7 @@ body {
   padding: 0;
   position: relative;
   font-family: Ubuntu, sans-serif;
+  overflow: hidden;
 }
 
 #overlay,

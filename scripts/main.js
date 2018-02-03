@@ -316,39 +316,6 @@ if ( touchable ) {
     redraw: true,
     constructor: Stick
   };
-
-  /**
-   * Preventing "pull-down-to-refresh":
-   * https://stackoverflow.com/questions/29008194/
-   */
-  var touchstart = function ( e ) {
-    if ( e.touches.length == 1 ) {
-      lastY = e.touches[ 0 ].clientY;
-      preventRefresh = _( window ).scrollTop() == 0;
-    }
-  };
-
-  var touchmove = function ( e ) {
-    var touchY = e.touches[ 0 ].clientY,
-        dy = touchY - lastY;
-
-    if ( preventRefresh ) {
-      if ( dy > 0 ) {
-        // Why that executes but doesn't work?
-        e.preventDefault();
-      }
-
-      // To suppress pull-to-refresh it
-      // is sufficient to preventDefault
-      // the first overscrolling touchmove.
-      preventRefresh = false;
-    }
-
-    lastY = touchY;
-  };
-
-  var lastY = 0,
-      preventRefresh = false;
 }
 
 _( window )
@@ -804,10 +771,6 @@ _( function ( _ ) {
     minimap.canvas.style.left = '16px';
 
   if ( touchable ) {
-    _( document.body )
-      .touchstart( touchstart )
-      .touchmove( touchmove );
-
     stick = new Stick( 0.5, 0.5, [ 0, 0, 0.5, 0.5 ] );
     button = new Button( -0.5, 0.5 );
   } else {
