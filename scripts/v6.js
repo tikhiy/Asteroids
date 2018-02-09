@@ -1,44 +1,25 @@
 /**
+ * Copyright (c) 2017-2018 SILENT
+ * Released under the MIT License.
  * v6.js is a JavaScript Graphic Library.
  * https://github.com/silent-tempest/v6
- *
  * p5.js:
  * https://github.com/processing/p5.js/
- *
- * MIT License
- *
- * Copyright (c) 2017-2018 SILENT
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
-// jshint esversion: 5
-// jshint unused: true
-// jshint undef: true
+/* jshint esversion: 5 */
+/* jshint unused: true */
+/* jshint undef: true */
+/* global Float32Array, Uint8ClampedArray, ImageData */
+
 ;( function ( window, undefined ) {
 
 'use strict';
 
-var document = window.document,
-    scotch = window.peako,
-    warn = window.console && window.console.warn || scotch.noop,
-    err = window.console && window.console.error || scotch.noop,
+var _ = window.peako,
+    document = window.document,
+    warn = window.console && window.console.warn || _.noop,
+    err = window.console && window.console.error || _.noop,
     floor = Math.floor,
     round = Math.round,
     atan2 = Math.atan2,
@@ -52,8 +33,30 @@ var document = window.document,
     renderer_index = -1;
 
 /**
- * Checks if `canvas` has `type`
- * context, using `getContext`.
+ * Copies elements from the `b` array to `a`.
+ * This is useful when `a` is TypedArray,
+ * because it's faster:
+ * https://jsperf.com/set-values-to-float32array-instance
+ * (no matter what jsperf says
+ * "something went wrong", believe me
+ * (although I don't believe myself already))
+ */
+
+// var a = [],
+//     b = [ 1, 2, 3 ];
+// copy_array( a, b, b.length );
+// // now `a` have the same elements with `b`.
+
+var copy_array = function ( a, b, length ) {
+  while ( --length >= 0 ) {
+    a[ length ] = b[ length ];
+  }
+
+  return a;
+};
+
+/**
+ * Checks if `canvas` has `type` context, using `getContext`.
  */
 var has_context = function ( canvas, type ) {
   try {
@@ -114,39 +117,30 @@ var default_options = {
     mode: '2d',
 
     /**
-     * MDN: Boolean that indicates if
-     * the canvas contains an alpha channel.
-     * If set to false, the browser now knows
-     * that the backdrop is always opaque,
-     * which can speed up drawing of transparent
-     * content and images.
+     * MDN: Boolean that indicates if the canvas
+     * contains an alpha channel.  If set to false,
+     * the browser now knows that the backdrop is
+     * always opaque,  which can speed up drawing of
+     * transparent content and images.
      * https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
      */
     alpha: true,
 
-    /**
-     * If true, the renderer will
-     * be added to the DOM.
-     */
+    /** Will be renderer added to the DOM? */
     append: true
-  },
-
-  camera: {
-    speed: 1
   }
 };
 
-/**
- * v6.map( 20, 0, 100, 0, 1 ); // -> 0.2
- * v6.map( -0.1, -1, 1, 0, 10 ) // -> 4.5
- */
+// v6.map( 20, 0, 100, 0, 1 ); // -> 0.2
+// v6.map( -0.1, -1, 1, 0, 10 ) // -> 4.5
+
 var map = function ( value, start1, stop1, start2, stop2, clamp ) {
   value = ( ( value - start1 ) / ( stop1 - start1 ) ) * ( stop2 - start2 ) + start2;
 
   if ( clamp ) {
     return start2 < stop2 ?
-      scotch.clamp( value, start2, stop2 ) :
-      scotch.clamp( value, stop2, start2 );
+      _.clamp( value, start2, stop2 ) :
+      _.clamp( value, stop2, start2 );
   }
 
   return value;
@@ -154,21 +148,22 @@ var map = function ( value, start1, stop1, start2, stop2, clamp ) {
 
 /**
  * Returns distance between two points.
- * v6.dist( 0, 0, 1, 1 ); // -> 1.4142135623730951
  */
+
+// v6.dist( 0, 0, 1, 1 ); // -> 1.4142135623730951
+
 var dist = function ( x1, y1, x2, y2 ) {
   return sqrt( ( x2 - x1 ) * ( x2 - x1 ) + ( y2 - y1 ) * ( y2 - y1 ) );
 };
 
-/**
- * var purple = v6.lerpColor( 'red', 'blue', 0.5 );
- */
+// var purple = v6.lerpColor( 'red', 'blue', 0.5 );
+
 var lerp_color = function ( a, b, value ) {
   return ( typeof a != 'object' ? parse_color( a ) : a ).lerp( b, value );
 };
 
-var shade = function ( hsl, percent ) {
-  return hsl[ 2 ] = scotch.clamp( floor( hsl[ 2 ] + percent ), 0, 100 ), hsl;
+var lerp = function ( a, b, value ) {
+  return a + ( b - a ) * value;
 };
 
 /**
@@ -282,10 +277,10 @@ var Ticker = function ( update, render ) {
 
   if ( render === undefined ) {
     render = update;
-    update = scotch.noop;
+    update = _.noop;
   }
 
-  ticker.lasttime = scotch.timestamp();
+  ticker.lasttime = _.timestamp();
   ticker.update = update;
   ticker.render = render;
 
@@ -294,7 +289,7 @@ var Ticker = function ( update, render ) {
   };
 };
 
-Ticker.prototype = scotch.create( null );
+Ticker.prototype = _.create( null );
 Ticker.prototype.constructor = Ticker;
 Ticker.prototype.step = 1 / 60;
 Ticker.prototype.stopped = true;
@@ -317,31 +312,30 @@ Ticker.prototype.tick = function ( fps, requested ) {
     this.step = 1 / fps;
   }
 
-  var now = scotch.timestamp(),
-      dt = min( 1, ( now - this.lasttime ) * 0.001 );
+  var now = _.timestamp(),
+      dt = min( 1, ( now - this.lasttime ) * 0.001 ),
+      step = this.step;
 
   this.skipped += dt;
   this.total += dt;
 
-  while ( this.skipped > this.step && !this.stopped ) {
-    this.skipped -= this.step;
-    this.update.call( this, this.step );
+  while ( this.skipped > step && !this.stopped ) {
+    this.skipped -= step;
+    this.update.call( this, step );
   }
 
   this.render.call( this, dt );
   this.lasttime = now;
-  this.lastid = scotch.requestframe( this.boundtick );
+  this.lastid = _.timer.request( this.boundtick );
   return this;
 };
 
-Ticker.prototype.clear = function () {
-  var id = this.lastid,
-      off = this.idoffset;
+Ticker.prototype.clear = function ( skipped ) {
+  _.timer.cancel( this.lastid );
+  this.lasttime = _.timestamp();
 
-  this.idoffset = id;
-
-  while ( id > off ) {
-    scotch.cancelframe( --id );
+  if ( skipped ) {
+    this.skipped = 0;
   }
 
   return this;
@@ -357,16 +351,17 @@ var vec2 = function ( x, y ) {
   return new Vector2D( x, y );
 };
 
+/** IMPORTANT: components are named 0, 1 and 2 (for 3D vector). */
 var Vector2D = function ( x, y ) {
   this.set( x, y );
 };
 
-Vector2D.prototype = scotch.create( null );
+Vector2D.prototype = _.create( null );
 Vector2D.prototype.constructor = Vector2D;
 Vector2D.prototype.length = 2;
 
 Vector2D.prototype.set = function ( x, y ) {
-  if ( x != null && typeof x == 'object' ) {
+  if ( typeof x == 'object' && x != null ) {
     this[ 0 ] = x[ 0 ] || 0;
     this[ 1 ] = x[ 1 ] || 0;
   } else {
@@ -378,7 +373,7 @@ Vector2D.prototype.set = function ( x, y ) {
 };
 
 Vector2D.prototype.lerp = function ( x, y, value ) {
-  if ( x != null && typeof x == 'object' ) {
+  if ( typeof x == 'object' && x != null ) {
     this[ 0 ] += ( x[ 0 ] - this[ 0 ] ) * y || 0;
     this[ 1 ] += ( x[ 1 ] - this[ 1 ] ) * y || 0;
   } else {
@@ -390,7 +385,7 @@ Vector2D.prototype.lerp = function ( x, y, value ) {
 };
 
 Vector2D.prototype.add = function ( x, y ) {
-  if ( x != null && typeof x == 'object' ) {
+  if ( typeof x == 'object' && x != null ) {
     this[ 0 ] += x[ 0 ] || 0;
     this[ 1 ] += x[ 1 ] || 0;
   } else {
@@ -402,7 +397,7 @@ Vector2D.prototype.add = function ( x, y ) {
 };
 
 Vector2D.prototype.sub = function ( x, y ) {
-  if ( x != null && typeof x == 'object' ) {
+  if ( typeof x == 'object' && x != null ) {
     this[ 0 ] -= x[ 0 ] || 0;
     this[ 1 ] -= x[ 1 ] || 0;
   } else {
@@ -446,27 +441,36 @@ Vector2D.prototype.setMag = function ( value ) {
 Vector2D.prototype.normalize = function () {
   var mag = this.mag();
 
-  return mag && mag !== 1 ?
-    this.div( mag ) : this;
+  if ( mag && mag !== 1 ) {
+    this.div( mag );
+  }
+
+  return this;
 };
 
 Vector2D.prototype.rotate = function ( angle ) {
+  var length = this.mag();
+
   if ( settings.degrees ) {
     angle = angle * pi / 180 + this.angle();
   } else {
     angle += this.angle();
   }
 
-  var length = this.mag();
   this[ 0 ] = length * cos( angle );
   this[ 1 ] = length * sin( angle );
+
   return this;
 };
 
 Vector2D.prototype.dot = function ( x, y ) {
-  return x != null && typeof x == 'object' ?
-    this[ 0 ] * ( x[ 0 ] || 0 ) + this[ 1 ] * ( x[ 1 ] || 0 ) :
-    this[ 0 ] * ( x || 0 ) + this[ 1 ] * ( y || 0 );
+  if ( typeof x != 'object' || x == null ) {
+    return this[ 0 ] * ( x || 0 ) +
+           this[ 1 ] * ( y || 0 );
+  }
+
+  return this[ 0 ] * ( x[ 0 ] || 0 ) +
+         this[ 1 ] * ( x[ 1 ] || 0 );
 };
 
 Vector2D.prototype.copy = function () {
@@ -480,8 +484,11 @@ Vector2D.prototype.dist = function ( vector ) {
 Vector2D.prototype.limit = function ( value ) {
   var mag = this.magSq();
 
-  return mag > value * value && ( mag = sqrt( mag ) ) ?
-    this.div( mag ).mult( value ) : this;
+  if ( mag > value * value && ( mag = sqrt( mag ) ) ) {
+    this.div( mag ).mult( value );
+  }
+
+  return this;
 };
 
 Vector2D.prototype.cross = function( vector ) {
@@ -496,6 +503,7 @@ Vector2D.prototype.toString = function () {
 
 /* VECTOR3D */
 
+/** IMPORTANT: components are named 0, 1 and 2. */
 var vec3 = function ( x, y, z ) {
   return new Vector3D( x, y, z );
 };
@@ -504,12 +512,12 @@ var Vector3D = function ( x, y, z ) {
   this.set( x, y, z );
 };
 
-Vector3D.prototype = scotch.create( null );
+Vector3D.prototype = _.create( null );
 Vector3D.prototype.constructor = Vector3D;
 Vector3D.prototype.length = 3;
 
 Vector3D.prototype.set = function ( x, y, z ) {
-  if ( x != null && typeof x == 'object' ) {
+  if ( typeof x == 'object' && x != null ) {
     this[ 2 ] = x[ 2 ] || 0;
     this[ 0 ] = x[ 0 ] || 0;
     this[ 1 ] = x[ 1 ] || 0;
@@ -523,7 +531,7 @@ Vector3D.prototype.set = function ( x, y, z ) {
 };
 
 Vector3D.prototype.lerp = function ( x, y, z, value ) {
-  if ( x != null && typeof x == 'object' ) {
+  if ( typeof x == 'object' && x != null ) {
     this[ 0 ] += ( x[ 0 ] - this[ 0 ] ) * y || 0;
     this[ 1 ] += ( x[ 1 ] - this[ 1 ] ) * y || 0;
     this[ 2 ] += ( x[ 2 ] - this[ 2 ] ) * y || 0;
@@ -537,7 +545,7 @@ Vector3D.prototype.lerp = function ( x, y, z, value ) {
 };
 
 Vector3D.prototype.add = function ( x, y, z ) {
-  if ( x != null && typeof x == 'object' ) {
+  if ( typeof x == 'object' && x != null ) {
     this[ 0 ] += x[ 0 ] || 0;
     this[ 1 ] += x[ 1 ] || 0;
     this[ 2 ] += x[ 2 ] || 0;
@@ -551,7 +559,7 @@ Vector3D.prototype.add = function ( x, y, z ) {
 };
 
 Vector3D.prototype.sub = function ( x, y, z ) {
-  if ( x != null && typeof x == 'object' ) {
+  if ( typeof x == 'object' && x != null ) {
     this[ 0 ] -= x[ 0 ] || 0;
     this[ 1 ] -= x[ 1 ] || 0;
     this[ 2 ] -= x[ 2 ] || 0;
@@ -593,9 +601,15 @@ Vector3D.prototype.normalize = Vector2D.prototype.normalize;
 Vector3D.prototype.rotate = Vector2D.prototype.rotate;
 
 Vector3D.prototype.dot = function ( x, y, z ) {
-  return x != null && typeof x == 'object' ?
-    this[ 0 ] * ( x[ 0 ] || 0 ) + this[ 1 ] * ( x[ 1 ] || 0 ) + this[ 2 ] * ( x[ 2 ] || 0 ) :
-    this[ 0 ] * ( x || 0 ) + this[ 1 ] * ( y || 0 ) + this[ 2 ] * ( z || 0 );
+  if ( typeof x != 'object' || x == null ) {
+    return this[ 0 ] * ( x || 0 ) +
+           this[ 1 ] * ( y || 0 ) +
+           this[ 2 ] * ( z || 0 );
+  }
+
+  return this[ 0 ] * ( x[ 0 ] || 0 ) +
+         this[ 1 ] * ( x[ 1 ] || 0 ) +
+         this[ 2 ] * ( x[ 2 ] || 0 );
 };
 
 Vector3D.prototype.copy = function () {
@@ -627,8 +641,10 @@ var names = [ 'set', 'lerp', 'add', 'sub', 'mult', 'div', 'setMag', 'normalize',
     i = names.length - 1;
 
 for ( ; i >= 0; --i ) {
+  /* jshint evil: true */
   Vector2D[ names[ i ] ] = Vector3D[ names[ i ] ] =
     Function( 'vector, x, y, z, value', 'return vector.copy().' + names[ i ] + '( x, y, z, value );' );
+  /* jshint evil: false */
 }
 
 Vector2D.angle = Vector3D.angle = function ( x, y ) {
@@ -753,18 +769,34 @@ var rhsl = /^hsl\s*\(\s*(\d+|\d*\.\d+)\s*,\s*(\d+|\d*\.\d+)\u0025\s*,\s*(\d+|\d*
     rrgb = /^rgb\s*\(\s*(\d+|\d*\.\d+)\s*,\s*(\d+|\d*\.\d+)\s*,\s*(\d+|\d*\.\d+)\s*\)$|^\s*rgba\s*\(\s*(\d+|\d*\.\d+)\s*,\s*(\d+|\d*\.\d+)\s*,\s*(\d+|\d*\.\d+)\s*,\s*(\d+|\d*\.\d+)\s*\)$/,
     rhex = /^(?:#)([0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])([0-9a-f][0-9a-f])?$/,
     rhex3 = /^(?:#)([0-9a-f])([0-9a-f])([0-9a-f])([0-9a-f])?$/,
-    parsed = scotch.create( null ),
+    parsed = _.create( null ),
     transparent = [ 0, 0, 0, 0 ];
 
 var color = function ( a, b, c, d ) {
-  return typeof a != 'string' ?
-    new RGBA( a, b, c, d ) :
-    parse_color( a );
+  if ( typeof a != 'string' ) {
+    return new RGBA( a, b, c, d );
+  }
+
+  return parse_color( a );
 };
 
+/**
+ * parse_color( '#f0f0' );
+ * // -> rgba(255, 0, 255, 0)
+ * parse_color( '#000000ff' );
+ * // -> rgba(0, 0, 0, 1)
+ * parse_color( 'magenta' );
+ * // -> rgba(255, 0, 255, 1)
+ * parse_color( 'transparent' );
+ * // -> rgba(0, 0, 0, 0)
+ * parse_color( 'hsl( 0, 100%, 50% )' );
+ * // -> hsla(0, 100%, 50%, 1)
+ * parse_color( 'hsla( 0, 100%, 50%, 0.5 )' );
+ * // -> hsla(0, 100%, 50%, 0.5)
+ */
 var parse_color = function ( string ) {
   var cache = parsed[ string ] ||
-    parsed[ string = scotch.trim( string ).toLowerCase() ];
+    parsed[ string = _.trim( string ).toLowerCase() ];
 
   if ( !cache ) {
     if ( ( cache = colors[ string ] ) ) {
@@ -785,6 +817,15 @@ var parse_color = function ( string ) {
   return new cache.constructor( cache[ 0 ], cache[ 1 ], cache[ 2 ], cache[ 3 ] );
 };
 
+/**
+ * format_hex( [ '#000000ff', '000000', 'ff' ] );
+ * // -> '000000ff'
+ * format_hex( [ '#0007', '0', '0', '0', '7' ], true );
+ * // -> '00000077'
+ * format_hex( [ '#000', '0', '0', '0', null ], true );
+ * // -> '000000ff'
+ * Theoretically, because I didn't test these examples.
+ */
 var format_hex = function ( match, short_syntax ) {
   if ( !short_syntax ) {
     return match[ 1 ] + ( match[ 2 ] || 'ff' );
@@ -798,6 +839,12 @@ var format_hex = function ( match, short_syntax ) {
   return r + r + g + g + b + b + a + a;
 };
 
+/**
+ * parse_hex( '00000000' );
+ * // -> [ 0, 0, 0, 0 ]
+ * parse_hex( 'ff00ffff' );
+ * // -> [ 255, 0, 255, 1 ]
+ */
 var parse_hex = function ( hex ) {
   if ( hex == 0 ) {
     return transparent;
@@ -813,6 +860,12 @@ var parse_hex = function ( hex ) {
   ];
 };
 
+/**
+ * compact_match( [ 'hsl( 0, 0%, 0% )', '0', '0', '0', null, null, null, null ] );
+ * // -> [ '0', '0', '0' ]
+ * compact_match( [ 'rgba( 0, 0, 0, 0 )', null, null, null, '0', '0', '0', '0' ] );
+ * // -> [ '0', '0', '0', '0' ]
+ */
 var compact_match = function ( match ) {
   return match[ 7 ] ?
     [ match[ 4 ], match[ 5 ], match[ 6 ], match[ 7 ] ] :
@@ -832,7 +885,7 @@ var RGBA = function ( r, g, b, a ) {
   this.set( r, g, b, a );
 };
 
-RGBA.prototype = scotch.create( null );
+RGBA.prototype = _.create( null );
 RGBA.prototype.constructor = RGBA;
 RGBA.prototype.type = 'rgba';
 
@@ -848,6 +901,22 @@ RGBA.prototype.toString = function () {
     this[ 3 ] + ')';
 };
 
+/**
+ * .set( 'magenta' );
+ * // r = 255, g = 0, b = 255, a = 1
+ * .set( '#ff00ff' );
+ * // r = 255, g = 0, b = 255, a = 1
+ * .set( 'rgb( 0, 0, 0 )' );
+ * // r = 0, g = 0, b = 0, a = 1
+ * .set( 0 );
+ * // ( r, g, b ) = 0, a = 1
+ * .set( 0, 0 );
+ * // ( r, g, b ) = 0, a = 0
+ * .set( 0, 0, 0 );
+ * // r = 0, g = 0, b = 0, a = 1
+ * .set( 0, 0, 0, 0 );
+ * // r = 0, g = 0, b = 0, a = 0
+ */
 RGBA.prototype.set = function ( r, g, b, a ) {
   if ( r == null || typeof r != 'object' && typeof r != 'string' ) {
     switch ( undefined ) {
@@ -880,6 +949,10 @@ RGBA.prototype.set = function ( r, g, b, a ) {
   return this;
 };
 
+/**
+ * v6.rgba( 255, 0, 0 ).hsla();
+ * // -> hsla(0, 100%, 50%, 1)
+ */
 RGBA.prototype.hsla = function () {
   var hsla = new HSLA(),
       r = this[ 0 ] / 255,
@@ -916,10 +989,15 @@ RGBA.prototype.hsla = function () {
   return hsla;
 };
 
+// Uses in <v6.RendererWebGL>.
 RGBA.prototype.rgba = function () {
   return this;
 };
 
+/**
+ * v6.rgba( 100 ).lerp( 'black', 0.5 );
+ * // rgba(50, 50, 50, 1)
+ */
 RGBA.prototype.lerp = function ( color, value ) {
   if ( typeof color != 'object' ) {
     color = parse_color( color );
@@ -930,9 +1008,9 @@ RGBA.prototype.lerp = function ( color, value ) {
   }
 
   return new RGBA(
-    this[ 0 ] + ( color[ 0 ] - this[ 0 ] ) * value,
-    this[ 1 ] + ( color[ 1 ] - this[ 1 ] ) * value,
-    this[ 2 ] + ( color[ 2 ] - this[ 2 ] ) * value );
+    lerp( this[ 0 ], color[ 0 ], value ),
+    lerp( this[ 1 ], color[ 1 ], value ),
+    lerp( this[ 2 ], color[ 2 ], value ) );
 };
 
 var hsla = function ( h, s, l, a ) {
@@ -943,7 +1021,7 @@ var HSLA = function ( h, s, l, a ) {
   this.set( h, s, l, a );
 };
 
-HSLA.prototype = scotch.create( null );
+HSLA.prototype = _.create( null );
 HSLA.prototype.constructor = HSLA;
 HSLA.prototype.type = 'hsla';
 
@@ -1026,6 +1104,8 @@ HSLA.prototype.rgba = function () {
 };
 
 HSLA.prototype.lerp = function ( color, value ) {
+  var that = this.rgba();
+
   if ( typeof color != 'object' ) {
     color = parse_color( color );
   }
@@ -1034,12 +1114,10 @@ HSLA.prototype.lerp = function ( color, value ) {
     color = color.rgba();
   }
 
-  var that = this.rgba();
-
   return new RGBA(
-    that[ 0 ] + ( color[ 0 ] - that[ 0 ] ) * value,
-    that[ 1 ] + ( color[ 1 ] - that[ 1 ] ) * value,
-    that[ 2 ] + ( color[ 2 ] - that[ 2 ] ) * value ).hsla();
+    lerp( that[ 0 ], color[ 0 ], value ),
+    lerp( that[ 1 ], color[ 1 ], value ),
+    lerp( that[ 2 ], color[ 2 ], value ) ).hsla();
 };
 
 var ColorData = function ( match, constructor ) {
@@ -1050,7 +1128,7 @@ var ColorData = function ( match, constructor ) {
   this.constructor = constructor;
 };
 
-ColorData.prototype = scotch.create( null );
+ColorData.prototype = _.create( null );
 
 /* FONT */
 
@@ -1088,7 +1166,7 @@ var Font = function ( style, variant, weight, size, family ) {
   this.set( style, variant, weight, size, family );
 };
 
-Font.prototype = scotch.create( null );
+Font.prototype = _.create( null );
 Font.prototype.constructor = Font;
 Font.prototype.style = Font.prototype.variant = Font.prototype.weight = 'normal';
 Font.prototype.size = 'medium';
@@ -1167,6 +1245,23 @@ var image = function ( path, x, y, w, h ) {
   return new Image( path, x, y, w, h );
 };
 
+/**
+ * new v6.Image( <Image> );
+ * new v6.Image( <v6.Image> );
+ * new v6.Image( path to image );
+ * // With the cropping:
+ * new v6.Image( ..., crop x, crop y, crop w, crop h );
+ * +------+
+ * | 1--2 |
+ * | |  | |
+ * | 3--4 |
+ * +------+
+ * Where:
+ * 1 = crop x
+ * 2 = crop y
+ * 3 = crop x + crop w
+ * 4 = crop y + crop h
+ */
 var Image = function ( path, x, y, w, h ) {
   if ( path !== undefined ) {
     if ( path instanceof window.Image ) {
@@ -1177,7 +1272,7 @@ var Image = function ( path, x, y, w, h ) {
       if ( !path.loaded ) {
         var image = this;
 
-        scotch( this.source ).one( 'load', function () {
+        _( this.source ).one( 'load', function () {
           image.set( x, y, w, h, true );
         } );
       } else {
@@ -1192,7 +1287,7 @@ var Image = function ( path, x, y, w, h ) {
   }
 };
 
-Image.prototype = scotch.create( null );
+Image.prototype = _.create( null );
 Image.prototype.constructor = Image;
 Image.prototype.x = Image.prototype.y = Image.prototype.width = Image.prototype.height = 0;
 Image.prototype.loaded = false;
@@ -1218,7 +1313,7 @@ Image.prototype.load = function ( path, x, y, w, h ) {
   var image = this.set( 0, 0, 0, 0, false ),
       source = image.source;
 
-  scotch( source ).one( 'load', function () {
+  _( source ).one( 'load', function () {
     image.set( x, y, w, h, true );
   } );
 
@@ -1233,15 +1328,21 @@ var loader = function () {
 };
 
 var Loader = function () {
-  this.list = scotch.create( null );
+  this.list = _.create( null );
 };
 
-Loader.prototype = scotch.create( null );
+Loader.prototype = _.create( null );
 Loader.prototype.constructor = Loader;
 
+/**
+ * .add( 'id', 'path.json' );
+ * .add( 'path.json' );
+ * .add( { id: 'path.json' } );
+ * .add( [ 'path.json' ] );
+ */
 Loader.prototype.add = function ( name, path ) {
   if ( typeof name == 'object' ) {
-    if ( scotch.isArray( name ) ) {
+    if ( _.isArray( name ) ) {
       var list = this.list,
           len = name.length,
           i = 0;
@@ -1250,7 +1351,7 @@ Loader.prototype.add = function ( name, path ) {
         list[ name[ i ] ] = name[ i + 1 ];
       }
     } else if ( name != null ) {
-      scotch.assign( this.list, name );
+      _.assign( this.list, name );
     } else {
       throw TypeError();
     }
@@ -1264,11 +1365,11 @@ Loader.prototype.add = function ( name, path ) {
 };
 
 var get_promise = function ( path, name ) {
-  return new scotch.Promise( /\.(?:png|jpe?g)$/i.test( path ) ? function ( resolve, reject ) {
+  return new _.Promise( /\.(?:png|jpe?g)$/i.test( path ) ? function ( resolve, reject ) {
     var image = new Image( path );
 
     if ( !image.loaded ) {
-      var $source = scotch( image.source );
+      var $source = _( image.source );
 
       var load = function () {
         $source.off( 'error', error );
@@ -1287,7 +1388,7 @@ var get_promise = function ( path, name ) {
       resolve( [ name, image ] );
     }
   } : function ( resolve, reject ) {
-    scotch.file( path, {
+    _.file( path, {
       onload: function ( file ) {
         resolve( [ name, file ] );
       },
@@ -1303,9 +1404,21 @@ var load_err = function ( data ) {
   err( data[ 0 ] );
 };
 
+// var files = {
+//    data: 'data.json'
+// };
+//
+// var onload = function ( files ) {
+//   console.log( 'Loaded: ', JSON.parse( files.data ) );
+// };
+//
+// v6.loader()
+//   .add( files )
+//   .load( onload );
+
 Loader.prototype.load = function ( setup, error ) {
   var list = this.list,
-      names = scotch.keys( list ),
+      names = _.keys( list ),
       length = names.length,
       promises = Array( length ),
       i = 0;
@@ -1314,7 +1427,7 @@ Loader.prototype.load = function ( setup, error ) {
     promises[ i ] = get_promise( list[ names[ i ] ], names[ i ] );
   }
 
-  scotch.Promise.all( promises )
+  _.Promise.all( promises )
     .then( setup, error || load_err );
 
   return this;
@@ -1376,25 +1489,50 @@ var shapes = {
 
 /* RENDERER2D */
 
+// var SCALE = window.devicePixelRatio || 1;
+//
+// var options = {
+//   settings: {
+//     scale: SCALE // default 1
+//   }, // default default_options.renderer.settings
+//
+//   alpha : false, // default true
+//   width : 100,   // default window width
+//   height: 100    // default window height
+// }; // default default_options.renderer
+//
+// var renderer = new v6.Renderer2D( options );
+
 var Renderer2D = function ( options ) {
   create_renderer( this, '2d', options );
+
+  this.state = {
+    beginPath: false
+  };
 };
 
-Renderer2D.prototype = scotch.create( null );
+Renderer2D.prototype = _.create( null );
 Renderer2D.prototype.constructor = Renderer2D;
 
+/**
+ * Adds <v6.Renderer2D>.canvas to the body element.
+ */
 Renderer2D.prototype.add = function () {
   return document.body.appendChild( this.canvas ), this;
 };
 
+/**
+ * Removes all event listeners bound to
+ * <v6.Renderer2D>.canvas (via peako.js)
+ * and remove it from the html.
+ */
 Renderer2D.prototype.destroy = function () {
-  return scotch( this.canvas ).off().remove(), this;
+  return _( this.canvas ).off().remove(), this;
 };
 
-Renderer2D.prototype.pixelDensity = function ( value ) {
-  return this.settings.scale = value, this;
-};
-
+/**
+ * Pushes the current style into the stack of saved styles.
+ */
 Renderer2D.prototype.push = function () {
   this.saves.push( clone_style( this.style, {
     fillStyle: {},
@@ -1435,7 +1573,7 @@ Renderer2D.prototype.resize = function ( w, h ) {
 };
 
 Renderer2D.prototype.fullwindow = function () {
-  var window = scotch( this.canvas.ownerDocument.defaultView );
+  var window = _( this.canvas.ownerDocument.defaultView );
   return this.resize( window.width(), window.height() );
 };
 
@@ -1523,6 +1661,13 @@ Renderer2D.prototype.line = function ( x1, y1, x2, y2 ) {
   return this;
 };
 
+/**
+ * width and height can be:
+ * 'initial' (same as image.width or height)
+ * 'auto' (will be calculated proportionally width or height)
+ * .image( v6.image( '50x100.jpg' ), 0, 0, 'auto', 200 );
+ * // Draw an image stretched to 100x200.
+ */
 Renderer2D.prototype.image = function ( image, x, y, width, height ) {
   if ( image == null ) {
     throw TypeError( image + ' is not an object' );
@@ -1726,34 +1871,62 @@ Renderer2D.prototype.colorMode = function ( mode ) {
   return this.settings.colorMode = mode, this;
 };
 
-Renderer2D.prototype.polygon = function ( x, y, r, n, begin ) {
-  if ( begin === undefined ) {
-    begin = -pi * 0.5;
-  } else if ( settings.degrees ) {
-    begin *= pi / 180;
-  }
+var get_polygon = function ( n ) {
+  return polygons[ n ] ||
+    ( polygons[ n ] = create_polygon( n ) );
+};
 
-  var step = pi * 2 / n,
-      end = begin + pi * 2,
-      style = this.style,
+Renderer2D.prototype._polygon = function ( x, y, rx, ry, n, a, degrees ) {
+  var polygon = get_polygon( n ),
       context = this.context;
 
-  context.beginPath();
-  context.moveTo( r * cos( begin ) + x, r * sin( begin ) + y );
+  context.save();
+  context.translate( x, y );
+  context.rotate( degrees ? a * pi / 180 : a );
+  context.scale( rx, ry );
+  this.drawVertices( polygon, polygon.length >> 1 );
+  context.restore();
+  return this;
+};
 
-  for ( begin += step; begin <= end; begin += step ) {
-    context.lineTo( r * cos( begin ) + x, r * sin( begin ) + y );
+Renderer2D.prototype.polygon = function ( x, y, r, n, a ) {
+  // Reduce the precision (of what?)
+  // for better caching functionality.
+  // When `n` is `3.141592`, `n` will be `3.14`.
+  if ( n % 1 ) {
+    n = floor( n * 100 ) * 0.01;
   }
 
-  if ( !this.state.beginPath ) {
-    if ( style.doFill ) {
-      this._fill();
-    }
+  if ( a === undefined ) {
+    this._polygon( x, y, r, r, n, -pi * 0.5 );
+  } else {
+    this._polygon( x, y, r, r, n, a, settings.degrees );
+  }
 
-    if ( style.doStroke ) {
-      context.closePath();
-      this._stroke();
-    }
+  return this;
+};
+
+Renderer2D.prototype.drawVertices = function ( data, length ) {
+  var context, i;
+
+  if ( length <= 2 ) {
+    return this;
+  }
+
+  context = this.context;
+  context.beginPath();
+  context.moveTo( data[ 0 ], data[ 1 ] );
+
+  for ( i = 2, length *= 2; i < length; i += 2 ) {
+    context.lineTo( data[ i ], data[ i + 1 ] );
+  }
+
+  if ( this.style.doFill ) {
+    this._fill();
+  }
+
+  if ( this.style.doStroke && this.style.lineWidth > 0 ) {
+    this._stroke( true );
   }
 
   return this;
@@ -1806,57 +1979,69 @@ Renderer2D.prototype._fill = function () {
   return this;
 };
 
-Renderer2D.prototype._stroke = function () {
-  this.context.strokeStyle = this.style.strokeStyle;
+Renderer2D.prototype._stroke = function ( close ) {
+  var ctx = this.context,
+      style = this.style;
 
-  if ( ( this.context.lineWidth = this.style.lineWidth ) < 1.5 ) {
-    this.context.stroke();
+  if ( close ) {
+    ctx.closePath();
   }
 
-  this.context.stroke();
+  ctx.strokeStyle = style.strokeStyle;
+
+  if ( ( ctx.lineWidth = style.lineWidth ) <= 1 ) {
+    ctx.stroke();
+  }
+
+  ctx.stroke();
   return this;
 };
 
 Renderer2D.prototype.camera = function ( options ) {
-  options = scotch.assign( {
-    offset: new Vector2D( this.width * 0.5, this.height * 0.5 )
-  }, options );
-
-  return new Camera( options );
+  return new Camera( options, this );
 };
 
 Renderer2D.prototype.setTransformFromCamera = function ( camera ) {
+  var scale = camera.scale[ 0 ],
+      location = camera.location;
+
   return this.setTransform(
-    camera.scale[ 0 ],
+    scale,
     0,
     0,
-    camera.scale[ 0 ],
-    camera.location[ 0 ] * camera.scale[ 0 ],
-    camera.location[ 1 ] * camera.scale[ 0 ] );
+    scale,
+    location[ 0 ] * scale,
+    location[ 1 ] * scale );
 };
 
-scotch.forInRight( {
+_.forOwnRight( {
   fontVariant: 'variant', fontStyle: 'style',
   fontWeight:  'weight',  fontSize:  'size',
   fontFamily:  'family'
 }, function ( name, methodname ) {
+  /* jshint evil: true */
   this[ methodname ] = Function( 'value', 'return this.style.font.' + name + ' = value, this;' );
+  /* jshint evil: false */
 }, Renderer2D.prototype );
 
-scotch.forEachRight( [
+_.forEachRight( [
   'scale',  'translate', 'moveTo', 'lineTo', 'setTransform', 'transform'
 ], function ( name ) {
+  /* jshint evil: true */
   this[ name ] = Function( 'a, b, c, d, e, f', 'return this.context.' + name + '( a, b, c, d, e, f ), this;' );
+  /* jshint evil: false */
 }, Renderer2D.prototype );
 
-scotch.forEachRight( [
+_.forEachRight( [
   'lineWidth', 'lineHeight', 'textAlign', 'textBaseline'
 ], function ( name ) {
+  /* jshint evil: true */
   this[ name ] = Function( 'value', 'return this.style.' + name + ' = value, this;' );
+  /* jshint evil: false */
 }, Renderer2D.prototype );
 
-scotch.forInRight( { fill: 'fillStyle', stroke: 'strokeStyle' }, function ( name, method_name ) {
-  var style = scotch.upperFirst( method_name ),
+_.forOwnRight( { fill: 'fillStyle', stroke: 'strokeStyle' }, function ( name, method_name ) {
+  var style = _.upperFirst( method_name ),
       do_style = 'do' + style,
       _method_name = '_' + method_name;
 
@@ -1890,14 +2075,14 @@ var Program = function ( context, vShader, fShader ) {
   this.context = context;
   this.vShader = vShader;
   this.fShader = fShader;
-  this.attributes = scotch.create( null );
-  this.uniforms = scotch.create( null );
+  this.attributes = _.create( null );
+  this.uniforms = _.create( null );
   this.samplers = [];
   this.loadAttributes();
   this.loadUniforms();
 };
 
-Program.prototype = scotch.create( null );
+Program.prototype = _.create( null );
 Program.prototype.constructor = Program;
 Program.prototype.loadedAttributes = Program.prototype.loadedUniforms = false;
 
@@ -1912,7 +2097,7 @@ Program.prototype.loadAttributes = function () {
     for ( ; i >= 0; --i ) {
       info = gl.getActiveAttrib( program, i );
       name = info.name;
-      attr = attrs[ name ] = scotch.create( null );
+      attr = attrs[ name ] = _.create( null );
       attr.name = name;
       attr.type = info.type;
       attr.size = info.size;
@@ -1938,7 +2123,7 @@ Program.prototype.loadUniforms = function () {
     for ( ; i >= 0; --i ) {
       info = gl.getActiveUniform( program, i );
       name = info.name;
-      uniform = scotch.create( null );
+      uniform = _.create( null );
       uniform.size = info.size;
       uniform.type = info.type;
       uniform.location = gl.getUniformLocation( program, name );
@@ -2020,10 +2205,10 @@ var shader = function ( v, f ) {
 var Shader = function ( v, f ) {
   this.vShaderSource = v;
   this.fShaderSource = f;
-  this.programs = scotch.create( null );
+  this.programs = _.create( null );
 };
 
-Shader.prototype = scotch.create( null );
+Shader.prototype = _.create( null );
 Shader.prototype.constructor = Shader;
 
 Shader.prototype.create = function ( renderer ) {
@@ -2031,8 +2216,6 @@ Shader.prototype.create = function ( renderer ) {
     this.programs[ renderer.index ] = new Program( renderer.context,
       create_shader( renderer.context, this.vShaderSource, renderer.context.VERTEX_SHADER ),
       create_shader( renderer.context, this.fShaderSource, renderer.context.FRAGMENT_SHADER ) );
-  } else {
-    warn( 'This shader program is already created for this renderer' );
   }
 
   return this;
@@ -2072,6 +2255,7 @@ var get_source = function ( script ) {
       source = '';
 
   while ( child ) {
+    // If it's a text node.
     if ( child.nodeType == 3 ) {
       source += child.textContent;
     }
@@ -2082,7 +2266,10 @@ var get_source = function ( script ) {
   return source;
 };
 
-/* BUFFER */
+/**
+ * Wrapper for WebGL buffer.
+ * But I want to delete this.
+ */
 
 var buffer = function ( context ) {
   return new Buffer( context );
@@ -2093,7 +2280,7 @@ var Buffer = function ( context ) {
   this.buffer = context.createBuffer();
 };
 
-Buffer.prototype = scotch.create( null );
+Buffer.prototype = _.create( null );
 Buffer.prototype.constructor = Buffer;
 
 Buffer.prototype.bind = function () {
@@ -2113,22 +2300,23 @@ var Transform = function () {
   this.matrix = mat3.identity();
 };
 
-Transform.prototype = scotch.create( null );
+Transform.prototype = _.create( null );
 Transform.prototype.constructor = Transform;
 Transform.prototype.index = -1;
 
 Transform.prototype.set = function ( a, b, c, d, e, f ) {
   var matrix = this.matrix;
-  matrix[ 0 ] = a;
-  matrix[ 4 ] = d;
-  matrix[ 1 ] = b;
-  matrix[ 3 ] = c;
-  matrix[ 6 ] = e;
-  matrix[ 7 ] = f;
+  matrix[ 0 ] = a; // x scale
+  matrix[ 1 ] = b; // x skew
+  matrix[ 3 ] = c; // y skew
+  matrix[ 4 ] = d; // y scale
+  matrix[ 6 ] = e; // x translate
+  matrix[ 7 ] = f; // y translate
   return this;
 };
 
 Transform.prototype.save = function () {
+  // Why create a matrix again, if it already exists?
   if ( this.stack[ ++this.index ] ) {
     mat3.copy( this.stack[ this.index ], this.matrix );
   } else {
@@ -2139,8 +2327,11 @@ Transform.prototype.save = function () {
 };
 
 Transform.prototype.restore = function () {
+  // If the stack isn't empty, restore the last value.
   if ( this.stack.length ) {
     mat3.copy( this.matrix, this.stack[ this.index-- ] );
+
+  // Restore the default values.
   } else {
     mat3.setIdentity( this.matrix );
   }
@@ -2247,8 +2438,6 @@ var mat3 = {
   }
 };
 
-/* RENDERERWEBGL */
-
 var default_shaders = {
 
   vertex:
@@ -2298,24 +2487,33 @@ var default_shaders = {
 var shaders = new Shader( default_shaders.vertex, default_shaders.fragment ),
     background_shaders = new Shader( default_shaders.background_vertex, default_shaders.background_fragment );
 
+/**
+ * In most cases, on phones (except iOS Safari)
+ * `RendererWebGL` works faster than `Renderer2D`.
+ */
+
 var RendererWebGL = function ( options ) {
   create_renderer( this, 'webgl', options );
+  /** For transformation functions (scale, translate, save...). */
   this.matrix = new Transform();
+  /** Standard buffer, shaders, program - will be used in most cases. */
   this.buffer = new Buffer( this.context );
   this.shaders = shaders.create( this );
   this.program = shaders.program( this );
+  /** Transformation isn't supported. */
   this.backgroundBuffer = new Buffer( this.context ).bind().data( background_vertices );
   this.backgroundShaders = background_shaders.create( this );
   this.backgroundProgram = background_shaders.program( this );
+  /** With a separate buffer, `rect` will run a little faster. (maybe add buffers for the arc?) */
   this.rectangleBuffer = new Buffer( this.context ).bind().data( rectangle_vertices );
+  /** Some weird bullshit. */
   this.blending( true );
 };
 
-RendererWebGL.prototype = scotch.create( null );
+RendererWebGL.prototype = _.create( null );
 RendererWebGL.prototype.constructor = RendererWebGL;
 RendererWebGL.prototype.add = Renderer2D.prototype.add;
 RendererWebGL.prototype.destroy = Renderer2D.prototype.destroy;
-RendererWebGL.prototype.pixelDensity = Renderer2D.prototype.pixelDensity;
 RendererWebGL.prototype.push = Renderer2D.prototype.push;
 RendererWebGL.prototype.pop = Renderer2D.prototype.pop;
 
@@ -2352,11 +2550,7 @@ RendererWebGL.prototype._clear_color = function ( r, g, b, a ) {
 };
 
 RendererWebGL.prototype.clearColor = function ( a, b, c, d ) {
-  var rgba = this.color( a, b, c, d );
-
-  if ( rgba.type !== 'rgba' ) {
-    rgba = rgba.rgba();
-  }
+  var rgba = fast_rgba( this.color( a, b, c, d ) );
 
   return this._clear_color(
     rgba[ 0 ] / 255,
@@ -2387,13 +2581,19 @@ RendererWebGL.prototype._background_color = function ( r, g, b, a ) {
   return this;
 };
 
-RendererWebGL.prototype.backgroundColor = function ( a, b, c, d ) {
-  var rgba = this.color( a, b, c, d ),
-      r, g;
-
-  if ( rgba.type !== 'rgba' ) {
-    rgba = rgba.rgba();
+var fast_rgba = function ( color ) {
+  if ( color.type === 'rgba' ) {
+    return color;
   }
+
+  return color.rgba();
+};
+
+RendererWebGL.prototype.backgroundColor = function ( a, b, c, d ) {
+  return this.clearColor( a, b, c, d );
+
+  /* var rgba = fast_rgba( this.color( a, b, c, d ) ),
+      r, g;
 
   r = rgba[ 0 ] / 255;
   g = rgba[ 1 ] / 255;
@@ -2402,7 +2602,7 @@ RendererWebGL.prototype.backgroundColor = function ( a, b, c, d ) {
 
   return this[ a < 1 ?
     '_background_color' :
-    '_clear_color' ]( r, g, b, a );
+    '_clear_color' ]( r, g, b, a ); */
 };
 
 RendererWebGL.prototype.background = Renderer2D.prototype.background;
@@ -2411,43 +2611,55 @@ RendererWebGL.prototype.clear = function ( /* x, y, w, h */ ) {
   return this._clear_color( 0, 0, 0, 0 );
 };
 
+/**
+ * `data`: Shape vertices [x1, y1, x2, y2...].
+ * `length`: Number of vertices (not length of the data!).
+ */
 RendererWebGL.prototype.drawVertices = function ( data, length ) {
-  if ( length > 0 ) {
-    var gl = this.context,
-        program = this.program;
+  var gl = this.context,
+      program = this.program;
 
-    if ( data ) {
-      this.buffer
-        .bind()
-        .data( data );
-    }
+  if ( length <= 2 ) {
+    return this;
+  }
 
-    program
-      .use()
-      .uniform( 'u_resolution', [ this.width, this.height ] )
-      .uniform( 'u_transform', this.matrix.matrix )
-      .vertexPointer( program.attributes.a_position.location, 2, gl.FLOAT, false, 0, 0 );
+  if ( data ) {
+    this.buffer
+      .bind()
+      .data( data );
+   }
 
-    if ( this.style.doFill ) {
-      program.uniform( 'u_color', this.style.fillStyle.rgba() );
-      gl.drawArrays( gl.TRIANGLE_FAN, 0, length );
-    }
+  program
+    .use()
+    .uniform( 'u_resolution', [ this.width, this.height ] )
+    .uniform( 'u_transform', this.matrix.matrix )
+    .vertexPointer( program.attributes.a_position.location, 2, gl.FLOAT, false, 0, 0 );
 
-    if ( this.style.doStroke && this.style.lineWidth > 0 ) {
-      program.uniform( 'u_color', this.style.strokeStyle.rgba() );
-      gl.lineWidth( this.style.lineWidth );
-      gl.drawArrays( gl.LINE_LOOP, 0, length );
-    }
+  if ( this.style.doFill ) {
+    program.uniform( 'u_color', this.style.fillStyle.rgba() );
+    gl.drawArrays( gl.TRIANGLE_FAN, 0, length );
+  }
+
+  if ( this.style.doStroke && this.style.lineWidth > 0 ) {
+    program.uniform( 'u_color', this.style.strokeStyle.rgba() );
+    gl.lineWidth( this.style.lineWidth );
+    gl.drawArrays( gl.LINE_LOOP, 0, length );
   }
 
   return this;
 };
 
+/**
+ * 1--------2
+ * |        |
+ * |        |
+ * 4--------3
+ */
 var rectangle_vertices = new Float32Array( [
-  0, 0,
-  1, 0,
-  1, 1,
-  0, 1
+  0, 0, /* 1 */
+  1, 0, /* 2 */
+  1, 1, /* 3 */
+  0, 1  /* 4 */
 ] );
 
 RendererWebGL.prototype.rect = function ( x, y, w, h ) {
@@ -2466,37 +2678,46 @@ RendererWebGL.prototype.rect = function ( x, y, w, h ) {
 };
 
 RendererWebGL.prototype.line = function ( x1, y1, x2, y2 ) {
-  if ( this.style.doStroke && this.style.lineWidth > 0 ) {
-    var gl = this.context,
-        buffer = this.buffer,
-        program = this.program,
-        vertices = new Float32Array( 4 );
-
-    vertices[ 0 ] = x1;
-    vertices[ 1 ] = y1;
-    vertices[ 2 ] = x2;
-    vertices[ 3 ] = y2;
-
-    buffer
-      .bind()
-      .data( vertices );
-
-    program
-      .use()
-      .uniform( 'u_color', this.style.strokeStyle.rgba() )
-      .uniform( 'u_resolution', [ this.width, this.height ] )
-      .uniform( 'u_transform', this.matrix.matrix )
-      .vertexPointer( program.attributes.a_position.location, 2, gl.FLOAT, false, 0, 0 );
-
-    gl.lineWidth( this.style.lineWidth );
-    gl.drawArrays( gl.LINE_LOOP, 0, 2 );
+  if ( !this.style.doStroke || this.style.lineWidth <= 0 ) {
+    return this;
   }
+
+  var gl = this.context,
+      buffer = this.buffer,
+      program = this.program,
+      vertices = new Float32Array( 4 );
+
+  vertices[ 0 ] = x1;
+  vertices[ 1 ] = y1;
+  vertices[ 2 ] = x2;
+  vertices[ 3 ] = y2;
+
+  buffer
+    .bind()
+    .data( vertices );
+
+  program
+    .use()
+    .uniform( 'u_color', this.style.strokeStyle.rgba() )
+    .uniform( 'u_resolution', [ this.width, this.height ] )
+    .uniform( 'u_transform', this.matrix.matrix )
+    .vertexPointer( program.attributes.a_position.location, 2, gl.FLOAT, false, 0, 0 );
+
+  gl.lineWidth( this.style.lineWidth );
+  gl.drawArrays( gl.LINE_LOOP, 0, 2 );
 
   return this;
 };
 
-var polygons = scotch.create( null );
+/**
+ * Cached polygons vertices.
+ */
+var polygons = _.create( null );
 
+/**
+ * Creates polygon vertices with `n` resolution.
+ * Values will be between -1 and 1 (sin and cos uses).
+ */
 var create_polygon = function ( n ) {
   var step = 2 * pi / n,
       int_n = floor( n ),
@@ -2515,21 +2736,18 @@ var create_polygon = function ( n ) {
   return vertices;
 };
 
-RendererWebGL.prototype._polygon = function ( x, y, rx, ry, resolution, angle, degrees ) {
-  if ( degrees && angle ) {
-    angle *= pi / 180;
-  }
-
-  var polygon = polygons[ resolution ];
-
-  if ( !polygon ) {
-    polygon = polygons[ resolution ] = create_polygon( resolution );
-  }
+/**
+ * Draw polygon in `x` and `y` location with
+ * the width (2 * `rx`) and height (2 * `ry`),
+ * resolution `n`, and rotated by `a` angle.
+ */
+RendererWebGL.prototype._polygon = function ( x, y, rx, ry, n, a, degrees ) {
+  var polygon = get_polygon( n );
 
   this.matrix
     .save()
     .translate( x, y )
-    .rotate( angle )
+    .rotate( degrees ? a * pi / 180 : a )
     .scale( rx, ry );
 
   this.drawVertices( polygon, polygon.length >> 1 );
@@ -2545,20 +2763,7 @@ RendererWebGL.prototype.arc = function ( x, y, r ) {
   return this._polygon( x, y, r, r, 24, 0 );
 };
 
-RendererWebGL.prototype.polygon = function ( x, y, r, n, a ) {
-  if ( n % 1 ) {
-    n = floor( n * 100 ) * 0.01;
-  }
-
-  if ( a === undefined ) {
-    this._polygon( x, y, r, r, n, -pi * 0.5 );
-  } else {
-    this._polygon( x, y, r, r, n, a, settings.degrees );
-  }
-
-  return this;
-};
-
+RendererWebGL.prototype.polygon = Renderer2D.prototype.polygon;
 RendererWebGL.prototype.font = Renderer2D.prototype.font;
 
 RendererWebGL.prototype.save = function () {
@@ -2585,17 +2790,42 @@ RendererWebGL.prototype.setTransform = function ( a, b, c, d, e, f ) {
   return this.matrix.set( a, b, c, d, e, f ), this;
 };
 
+// not tested
 RendererWebGL.prototype.transform = function ( a, b, c, d, e, f ) {
   return this.matrix.transform( a, b, c, d, e, f ), this;
 };
 
 RendererWebGL.prototype.noFill = Renderer2D.prototype.noFill;
 RendererWebGL.prototype.noStroke = Renderer2D.prototype.noStroke;
-RendererWebGL.prototype.beginShape = Renderer2D.prototype.beginShape;
-RendererWebGL.prototype.vertex = Renderer2D.prototype.vertex;
 
+// not tested
+RendererWebGL.prototype.beginShape = function () {
+  this.vertices.length = 0;
+  this._vertices_is_updated = false;
+  return this;
+};
+
+// not tested
+RendererWebGL.prototype.vertex = function ( x, y ) {
+  this.vertices.push( x, y );
+
+  if ( this._vertices_is_updated ) {
+    this._vertices_is_updated = false;
+  }
+
+  return this;
+};
+
+// not tested
 RendererWebGL.prototype.endShape = function () {
-  return this.drawVertices( new Float32Array( this.vertices ), this.vertices.length * 0.5 );
+  if ( !this._vertices_is_updated ) {
+    this._vertices = copy_array(
+      new Float32Array( this.vertices.length ),
+      this.vertices,
+      this.vertices.length );
+  }
+
+  return this.drawVertices( this._vertices, this._vertices.length * 0.5 );
 };
 
 RendererWebGL.prototype.rectAlign = Renderer2D.prototype.rectAlign;
@@ -2615,12 +2845,16 @@ RendererWebGL.prototype.point = function ( x, y ) {
     .pop();
 };
 
-RendererWebGL.prototype.getImageData = function ( x, y, w, h ) {
+RendererWebGL.prototype.getPixels = function ( x, y, w, h ) {
   var gl = this.context,
       pixels = new Uint8ClampedArray( w * h * 4 );
 
   gl.readPixels( x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels );
-  return new ImageData( pixels, w, h );
+  return pixels;
+};
+
+RendererWebGL.prototype.getImageData = function ( x, y, w, h ) {
+  return new ImageData( this.getPixels( x, y, w, h ), w, h );
 };
 
 // As I understand it, I need textures.
@@ -2632,26 +2866,23 @@ RendererWebGL.prototype.camera = Renderer2D.prototype.camera;
 RendererWebGL.prototype.setTransformFromCamera = Renderer2D.prototype.setTransformFromCamera;
 
 var defaults = function ( options, defaults ) {
-  if ( options === undefined ) {
-    options = scotch.clone( true, defaults );
-  } else {
-    options = scotch.defaults( defaults, options );
+  if ( options ) {
+    return _.mixin( true, {}, defaults, options );
   }
 
-  return options;
+  return _.mixin( true, {}, defaults );
 };
 
+/** Initializes the renderer. */
 var create_renderer = function ( renderer, mode, options ) {
   options = defaults( options, default_options.renderer );
   renderer.settings = options.settings;
   renderer.mode = mode;
   renderer.index = ++renderer_index;
+  /** Stack of saved styles (push, pop). */
   renderer.saves = [];
+  /** Shape vertices (beginShape, vertex, endShape). */
   renderer.vertices = [];
-
-  renderer.state = {
-    beginPath: false
-  };
 
   if ( !options.canvas ) {
     renderer.canvas = document.createElement( 'canvas' );
@@ -2684,7 +2915,8 @@ var create_renderer = function ( renderer, mode, options ) {
   } else if ( mode === 'webgl' ) {
     switch ( support.webgl ) {
       case 1: renderer.context = renderer.canvas.getContext( 'webgl', context_options ); break;
-      case 2: renderer.context = renderer.canvas.getContext( 'webgl-experemental', context_options );
+      case 2: renderer.context = renderer.canvas.getContext( 'webgl-experemental', context_options ); break;
+      case 0: throw Error( 'WebGL not supports' );
     }
   }
 
@@ -2699,51 +2931,154 @@ var create_renderer = function ( renderer, mode, options ) {
   }
 };
 
-/* CAMERA */
+/**
+ * Using `Camera` class, you can easily make
+ * a camera for the game (or not for the game)
+ * and easily operate it.
+ */
 
-var Camera = function ( options ) {
-  options = defaults( options, default_options.camera );
+var camera = function ( options, renderer ) {
+  return new Camera( options, renderer );
+};
 
-  // float between 0 and 1
-  // 1 when camera should be "fixed"
-  // 0.1 camera will be smooth
-  this.speed = options.speed;
+var Camera = function ( options, renderer ) {
+  if ( !options ) {
+    options = {};
+  }
+
+  /**
+   * Numbers between 0 and 1:
+   * 1 - the camera will move at the speed of light
+   * 0.1 - the camera will be similar to the real operator
+   */
+  this.speed = options.speed || [
+    1, // x speed
+    1, // y speed
+    1, // zoom in speed
+    1  // zoom out speed
+  ];
 
   this.scale = options.scale || [
     1, // scale
-    1, // min scale
-    1  // max scale
+    1, // min scale (zoom out)
+    1  // max scale (zoom in)
   ];
 
-  this.offset = options.offset || new v6.Vector2D();
+  /**
+   * Offset from the top-left corner of the
+   * renderer to the `lookAt` position.
+   */
+  this.offset = options.offset;
+
+  if ( renderer ) {
+    if ( !this.offset ) {
+      this.offset = new Vector2D( renderer.width * 0.5, renderer.height * 0.5 );
+    }
+
+    /** Uses in `sees` function. */
+    this.renderer = renderer;
+  } else if ( !this.offset ) {
+    this.offset = new Vector2D();
+  }
 
   this.location = [
     0, 0, // current location
-    0, 0  // location of the object to be viewed
+    0, 0  // tranformed location of the object to be viewed
   ];
+
+  /** Will be zoom in/out animation with the linear effect? */
+  this.linearZoom = options.linearZoom || {
+    zoomIn : true,
+    zoomOut: true
+  };
 };
 
 Camera.prototype = {
-  // how to use delta time here?
+  /** Moves the camera to the `lookAt` position with its speed. */
   update: function ( /* dt */ ) {
+    // how to use delta time here?
     var loc = this.location,
         spd = this.speed;
 
     if ( loc[ 0 ] !== loc[ 2 ] ) {
-      loc[ 0 ] += ( loc[ 2 ] - loc[ 0 ] ) * spd;
+      loc[ 0 ] += ( loc[ 2 ] - loc[ 0 ] ) * spd[ 0 ];
     }
 
     if ( loc[ 1 ] !== loc[ 3 ] ) {
-      loc[ 1 ] += ( loc[ 3 ] - loc[ 1 ] ) * spd;
+      loc[ 1 ] += ( loc[ 3 ] - loc[ 1 ] ) * spd[ 1 ];
     }
 
     return this;
   },
 
+  /** Changes `lookAt` location. */
   lookAt: function ( at ) {
-    this.location[ 2 ] = -at[ 0 ] + this.offset[ 0 ] / this.scale[ 0 ];
-    this.location[ 3 ] = -at[ 1 ] + this.offset[ 1 ] / this.scale[ 0 ];
+    this.location[ 2 ] = this.offset[ 0 ] / this.scale[ 0 ] - at[ 0 ];
+    this.location[ 3 ] = this.offset[ 1 ] / this.scale[ 0 ] - at[ 1 ];
     return this;
+  },
+
+  /** At what position the camera looking now? */
+  looksAt: function () {
+    var scl = this.scale[ 0 ];
+
+    return new Vector2D(
+      ( this.offset[ 0 ] - this.location[ 0 ] * scl ) / scl,
+      ( this.offset[ 1 ] - this.location[ 1 ] * scl ) / scl );
+  },
+
+  /** There is no need to draw something if it's not visible. */
+ 
+  // if ( camera.sees( object.x, object.y, object.w, object.h ) ) {
+  //   object.show();
+  // }
+
+  sees: function ( x, y, w, h, renderer ) {
+    var off = this.offset,
+        scl = this.scale[ 0 ],
+        at = this.looksAt();
+
+    if ( !renderer ) {
+      renderer = this.renderer;
+    }
+
+    return x + w > at[ 0 ] - off[ 0 ] / scl &&
+           x     < at[ 0 ] + ( renderer.width - off[ 0 ] ) / scl &&
+           y + h > at[ 1 ] - off[ 1 ] / scl &&
+           y     < at[ 1 ] + ( renderer.height - off[ 1 ] ) / scl;
+  },
+
+  /** Increases `scale[0]` to `scale[2]` with `speed[2]` speed. */
+  zoomIn: function () {
+    var scl = this.scale,
+        spd;
+
+    if ( scl[ 0 ] !== scl[ 2 ] ) {
+      if ( this.linearZoom.zoomIn ) {
+        spd = this.speed[ 2 ] * scl[ 0 ];
+      } else {
+        spd = this.speed[ 2 ];
+      }
+
+      scl[ 0 ] = min( scl[ 0 ] + spd, scl[ 2 ] );
+    }
+  },
+
+  /** Decreases `scale[0]` to `scale[1]` with `speed[3]` speed. */
+  zoomOut: function () {
+    // copy-paste :(
+    var scl = this.scale,
+        spd;
+
+    if ( scl[ 0 ] !== scl[ 1 ] ) {
+      if ( this.linearZoom.zoomOut ) {
+        spd = this.speed[ 3 ] * scl[ 0 ];
+      } else {
+        spd = this.speed[ 3 ];
+      }
+
+      scl[ 0 ] = max( scl[ 0 ] - spd, scl[ 1 ] );
+    }
   },
 
   constructor: Camera
@@ -2765,6 +3100,7 @@ v6.Transform = Transform;
 v6.Renderer2D = Renderer2D;
 v6.RendererWebGL = RendererWebGL;
 v6.ticker = ticker;
+v6.camera = camera;
 v6.vec2 = vec2;
 v6.vec3 = vec3;
 v6.rgba = rgba;
@@ -2780,6 +3116,7 @@ v6.shader = shader;
 v6.program = program;
 v6.map = map;
 v6.dist = dist;
+v6.lerp = lerp;
 v6.lerpColor = lerp_color;
 v6.getShaderSource = get_source;
 v6.support = support;

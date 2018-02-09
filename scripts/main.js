@@ -2,26 +2,6 @@
 
 'use strict';
 
-var USE_CACHE = false;
-
-if ( USE_CACHE && 'serviceWorker' in navigator ) {
-  navigator.serviceWorker.register( 'service-worker.js' )
-    .then( function ( registration ) {
-      console.log( 'Registration succeeded. Scope is ' + registration.scope );
-    }, function ( ex ) {
-      console.log( 'Registration failed with ' + ex );
-    } );
-}
-
-var root = document.documentElement,
-    MINIMAP_SIZE;
-
-if ( root.clientWidth > 960 && root.clientHeight > 960 ) {
-  MINIMAP_SIZE = 200;
-} else {
-  MINIMAP_SIZE = 100;
-}
-
 var pi = Math.PI,
     cos = Math.cos,
     sin = Math.sin,
@@ -29,6 +9,10 @@ var pi = Math.PI,
     min = Math.min,
     max = Math.max,
     abs = Math.abs;
+
+var root = document.documentElement,
+    size = min( root.clientWidth, root.clientHeight ),
+    MINIMAP_SIZE = _.clamp( size / 4, 100, 200 );
 
 // width and height of the map
 var w = 2500,
@@ -48,6 +32,17 @@ var KEYS = {
   LARR : 37,
   UARR : 38,
   RARR : 39
+};
+
+var clone_array = function ( array ) {
+  var i = array.length,
+      clone = new array.constructor( i );
+
+  while ( --i >= 0 ) {
+    clone[ i ] = array[ i ];
+  }
+
+  return clone;
 };
 
 var intersects = {
@@ -350,7 +345,7 @@ var Asteroid = function ( x, y, renderer ) {
   } else {
     this.renderer = x.renderer;
     this.location = x.location.copy();
-    this.vertices = x.vertices.slice();
+    this.vertices = clone_array( x.vertices );
     this.radius = x.radius * 0.5;
   }
 
@@ -383,15 +378,13 @@ Asteroid.prototype = {
   show: function () {
     var x = this.location[ 0 ],
         y = this.location[ 1 ],
-        scl = camera.scale[ 0 ];
+        r = this.radius;
 
-    if ( abs( ship.location[ 0 ] - x ) < renderer.width / scl &&
-         abs( ship.location[ 1 ] - y ) < renderer.height / scl )
-    {
+    if ( camera.sees( x - r, y - r, r * 2, r * 2 ) ) {
       this.renderer
         .save()
         .translate( x, y )
-        .scale( this.radius, this.radius )
+        .scale( r, r )
         .drawVertices( this.vertices, this.vertices.length * 0.5 )
         .restore();
     }
@@ -611,12 +604,10 @@ var update = function ( dt ) {
 
   ship.update( dt );
   ship.velocity.mult( 0.9875 );
-  // camera.scale[ 0 ] = v6.map( ship.velocity.mag(),
-  //   0, 200, camera.scale[ 2 ], camera.scale[ 1 ], true );
 
   camera
     .lookAt( ship.location )
-    .update( dt );
+    .update();
 };
 
 var render = function () {
@@ -721,13 +712,12 @@ var ui = {
     ];
 
     var i = selectors.length - 1,
-        elements = {};
+        elements = this.elements = {};
 
     for ( ; i >= 0; --i ) {
       elements[ selectors[ i ] ] = _( selectors[ i ] );
     }
 
-    this.elements = elements;
     elements[ '#play' ].click( play );
   } ),
 
@@ -745,21 +735,21 @@ var ui = {
 };
 
 _( function ( _ ) {
-  ui.init();
-
   renderer = new v6.RendererWebGL()
     .stroke( 255 )
     .fill( 255 )
     .lineWidth( 2 );
 
   camera = renderer.camera( {
-    scale: [
-      0.6, // scale
-      0.6, // min scale
-      1    // max scale
+    // smooth camera
+    speed: [
+      0.05,
+      0.05
     ],
 
-    speed: 0.05 // smooth camera
+    scale: [
+      0.6
+    ]
   } );
 
   minimap = new v6.Renderer2D( {
@@ -780,6 +770,7 @@ _( function ( _ ) {
   ship = new Ship( 0, 0, renderer );
   restart();
   v6.ticker( update, render ).tick();
+  ui.init();
 } );
 
 } )( this );

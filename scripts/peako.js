@@ -1,44 +1,22 @@
 /**
+ * Copyright (c) 2017-2018 SILENT
+ * Released under the MIT License.
  * Peako is a JavaScript Library.
  * https://github.com/silent-tempest/Peako
- *
  * Based on jQuery:
  * https://github.com/jquery/jquery
- *
  * Based on Underscore.js:
  * https://github.com/jashkenas/underscore
- *
  * Based on Lodash:
  * https://github.com/lodash/lodash
- *
- * MIT License
- *
- * Copyright (c) 2017-2018 SILENT
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
  * Code below could be confusing!
  */
 
-// jshint esversion: 3
-// jshint unused: true
-// jshint undef: true
+/* jshint esversion: 3 */
+/* jshint unused: true */
+/* jshint undef: true */
+/* global XMLHttpRequest, Element, FileReader, Blob, FormData, ArrayBuffer */
+
 ;( function ( window, undefined ) {
 
 'use strict';
@@ -71,16 +49,25 @@ var document = window.document,
     ERR_FUNCTION_EXPECTED = 'Expected a function',
     ERR_STRING_EXPECTED = 'Expected a string',
     ERR_UNDEFINED_OR_NULL = 'Cannot convert undefined or null to object',
-    ERR_REDUCE_OF_EMPTY_ARRAY = 'Reduce of empty array with no initial value',
-    ERR_INVALID_PROPERTY_DESCRIPTOR = 'Invalid property descriptor.' +
-      ' Cannot both specify accessors and a value or writable attribute';
+    ERR_REDUCE_OF_EMPTY_ARRAY = 'Reduce of empty array with no initial value';
+
+var regexps = {
+  selector: /^(?:#([\w-]+)|([\w-]+)|\.([\w-]+))$/,
+  property: /(^|\.)\s*([_a-z]\w*)\s*|\[\s*(\d+|\d*\.\d+|"(([^\\]\\(\\\\)*"|[^"])*)"|'(([^\\]\\(\\\\)*'|[^'])*)')\s*\]/gi,
+  deep_key: /(^|[^\\])(\\\\)*(\.|\[)/,
+  single_tag: /^(<([\w-]+)><\/[\w-]+>|<([\w-]+)(\s*\/)?>)$/,
+  not_whitespaces: /[^\s\uFEFF\xA0]+/g
+};
 
 var support = {};
 
 var cached = function ( getOutput, lastInput, lastOutput ) {
   return function ( input ) {
-    return input === lastInput ?
-      lastOutput : ( lastOutput = getOutput( lastInput = input ) );
+    if ( input !== lastInput ) {
+      lastOutput = getOutput( lastInput = input );
+    }
+
+    return lastOutput;
   };
 };
 
@@ -90,7 +77,7 @@ var cached = function ( getOutput, lastInput, lastOutput ) {
  * In `_.bindFast` you can't use partial arguments.
  */
 var bindFast = function ( target, context ) {
-  if ( !isFunctionLike( target ) ) {
+  if ( typeof target != 'function' ) {
     throw TypeError( ERR_FUNCTION_EXPECTED );
   }
 
@@ -115,25 +102,24 @@ var bindFast = function ( target, context ) {
 
 /**
  * Returns true if `value` is an Array instance.
- *
- * For example:
- * _.isArray( [] ); // -> true
- * _.isArray( Array() ) // -> true
  */
+ 
+// _.isArray( [] ); // -> true
+// _.isArray( Array() ) // -> true
+
 var isArray = Array.isArray || function ( value ) {
   return isObjectLike( value ) && isLength( value.length ) && toString.call( value ) == '[object Array]';
 };
 
 /**
- * Returns true if `value` is array-like.
- * String is array-like, objects with
- * a valid `length` property also array-like.
- *
- * For example:
- * _.isArrayLike( [] ); // -> true
- * _.isArrayLike( _( window ) ) // -> true
- * _.isArrayLike( new Float32Array() ) // -> true
+ * Returns true if `value` is array-like. String is array-like,
+ * objects with a valid `length` property also array-like.
  */
+
+// _.isArrayLike( [] ); // -> true
+// _.isArrayLike( _( window ) ) // -> true
+// _.isArrayLike( new Float32Array() ) // -> true
+
 var isArrayLike = function ( value ) {
   if ( value == null ) {
     return false;
@@ -148,67 +134,47 @@ var isArrayLike = function ( value ) {
 
 /**
  * Returns true if `value` is an object and array-like.
- *
- * For example:
- * _.isArrayLikeObject( [] ); // -> true
- * _.isArrayLikeObject( '' ); // -> false
- * _.isArrayLikeObject( new String() ) // -> true
  */
+
+// _.isArrayLikeObject( [] ); // -> true
+// _.isArrayLikeObject( '' ); // -> false
+// _.isArrayLikeObject( new String() ) // -> true
+
 var isArrayLikeObject = function ( value ) {
   return isObjectLike( value ) && isLength( value.length ) && !isWindowLike( value );
 };
 
 /**
- * Returns true if `value` is a boolean primitive or object.
- *
- * For example:
- * _.isBoolean( false ); // -> true
- * _.isBoolean( new Boolean() ) // -> true
+ * Returns true if `value` is a boolean primitive.
  */
+
+// _.isBoolean( false ); // -> true
+// _.isBoolean( new Boolean() ) // -> false (in older versions - true)
+
 var isBoolean = function ( value ) {
-  return value != null && (
-    typeof value == 'boolean' ||
-    typeof value == 'object' &&
-    toString.call( value ) == '[object Boolean]' );
+  return typeof value == 'boolean';
 };
 
 /**
- * Returns true if `value` is a finite number primitive or object.
- *
- * For example:
- * _.isFinite( new Number() ); // -> true
- * _.isFinite( Infinity ) // -> false
- * _.isFinite( NaN ) // -> false
+ * Returns true if `value` is a finite number primitive.
  */
+
+// _.isFinite( new Number() ); // -> false (in older versions - true)
+// _.isFinite( Infinity ) // -> false
+// _.isFinite( NaN ) // -> false
+
 var isFinite = function ( value ) {
   return isNumber( value ) && window.isFinite( value );
 };
 
 /**
- * Returns true if `value` is a `function`, but
- * returns false for generator and async functions.
- *
- * For example:
- * _.isFunction( () => {} ); // -> true
- * _.isFunction( async () => {} ); // -> false
- */
-var isFunction = function ( value ) {
-  return typeof value == 'function' &&
-    toString.call( value ) == '[object Function]';
-};
-
-/**
  * Returns true for all kinds of `function`.
- *
- * For example anything below returns true:
- * _.isFunctionLike( () => {} );
- * _.isFunctionLike( async () => {} );
- * _.isFunctionLike( function () {} );
- * _.isFunctionLike( async function () {} );
- * _.isFunctionLike( async function * () {} );
- * _.isFunctionLike( Function() );
  */
-var isFunctionLike = function ( value ) {
+
+// _.isFunction( () => {} ); // -> true
+// _.isFunction( async () => {} ); // -> true (in older versions - false)
+
+var isFunction = function ( value ) {
   return typeof value == 'function';
 };
 
@@ -216,12 +182,12 @@ support.HTMLElement = toString.call( body ).indexOf( 'HTML' ) > 0;
 
 /**
  * Returns true is `value` is a HTMLElement instance.
- *
- * For example:
- * _.isElement( document.createElement( 'span' ) ) // -> true
- * _.isElement( document.body ); // -> true
- * _.isElement( { nodeType: 1 } ) // -> false
  */
+
+// _.isElement( document.createElement( 'span' ) ) // -> true
+// _.isElement( document.body ); // -> true
+// _.isElement( { nodeType: 1 } ) // -> false
+
 var isElement = function ( value ) {
   if ( !isElementLike( value ) ) {
     return false;
@@ -235,36 +201,35 @@ var isElement = function ( value ) {
 };
 
 /**
- * Returns true is `value` is a HTMLElement instance, but
- * faster than `_.isElement`.
- *
- * For example:
- * _.isElementLike( document.createElement( 'span' ) ) // -> true
- * _.isElementLike( document.body ); // -> true
- * _.isElementLike( { nodeType: 1 } ) // -> true
+ * Returns true is `value` is a HTMLElement instance, but faster than `_.isElement`.
  */
+
+// _.isElementLike( document.createElement( 'span' ) ) // -> true
+// _.isElementLike( document.body ); // -> true
+// _.isElementLike( { nodeType: 1 } ) // -> true
+
 var isElementLike = function ( value ) {
   return ( support.HTMLElement ? isObjectLike : isObject )( value ) && value.nodeType === 1;
 };
 
 /**
  * Returns true if `value` is a valid array-like index.
- *
- * For example:
- *
- * _.isIndex( 0 ) // -> true
- * _.isIndex( -1 ) // -> false
- * _.isIndex( 0.1 ) // -> false
- * _.isIndex( Infinity ) // -> false
- * _.isIndex( new Number() ); // -> false
- *
- * Using second parameter:
- *
- * const names = [ 'Josh', 'Jared' ];
- *
- * _.isIndex( 1, names.length ); // -> true
- * _.isIndex( 10, names.length ); // -> false
  */
+
+// _.isIndex( 0 ) // -> true
+// _.isIndex( -1 ) // -> false
+// _.isIndex( 0.1 ) // -> false
+// _.isIndex( Infinity ) // -> false
+// _.isIndex( new Number() ); // -> false
+
+/**
+ * Using second parameter:
+ */
+
+// var names = [ 'Josh', 'Jared' ];
+// _.isIndex( 1, names.length ); // -> true
+// _.isIndex( 10, names.length ); // -> false
+
 var isIndex = function ( value, length, guard ) {
   if ( guard || length === undefined ) {
     length = MAX_SAFE_INT;
@@ -281,12 +246,12 @@ var MAX_ARRAY_LENGTH = 4294967295;
 
 /**
  * Returns true if `value` is a valid Array instance length.
- *
- * For example:
- * _.isLength( 0 ) // -> true
- * _.isLength( -0.1 ); // -> false
- * _.isLength( new Number() ) // -> false
  */
+
+// _.isLength( 0 ) // -> true
+// _.isLength( -0.1 ); // -> false
+// _.isLength( new Number() ) // -> false
+
 var isLength = function ( value ) {
   return typeof value == 'number' &&
     value >= 0 &&
@@ -296,38 +261,35 @@ var isLength = function ( value ) {
 
 /**
  * Checks if `value` is a NaN.
- *
- * For example:
- * _.isNaN( NaN ) // -> true
- * _.isNaN( new Number( NaN ) ) // -> true
  */
+
+// _.isNaN( NaN ) // -> true
+// _.isNaN( new Number( NaN ) ) // -> true
+
 var isNaN = function ( value ) {
   return isNumber( value ) && value != +value;
 };
 
 /**
- * Returns true if `value` is a number primitive or object.
- *
- * For example:
- * _.isNumber( 0 ); // -> true
- * _.isNumber( NaN ) // -> true
- * _.isNumber( new Number( Infinity ) ) -> true
+ * Returns true if `value` is a number primitive.
  */
+
+// _.isNumber( 0 ); // -> true
+// _.isNumber( NaN ) // -> true
+// _.isNumber( new Number( Infinity ) ) -> false (in older versions - true)
+
 var isNumber = function ( value ) {
-  return value != null && (
-    typeof value == 'number' ||
-    typeof value == 'object' &&
-    toString.call( value ) == '[object Number]' );
+  return typeof value == 'number';
 };
 
 /**
  * Returns true if `value` is an Object instance.
- *
- * For example:
- * _.isObject( {} ); // -> true
- * _.isObject( [] ); // -> false
- * _.isObject( new function () {} ); // -> true
  */
+
+// _.isObject( {} ); // -> true
+// _.isObject( [] ); // -> false
+// _.isObject( new function () {} ); // -> true
+
 var isObject = function ( value ) {
   return isObjectLike( value ) &&
     toString.call( value ) == '[object Object]';
@@ -335,12 +297,12 @@ var isObject = function ( value ) {
 
 /**
  * Returns true if `value` is object-like.
- *
- * For example:
- * _.isObjectLike( {} ); // -> true
- * _.isObjectLike( [] ); // -> true
- * _.isObjectLike( new function () {} ); // -> true
  */
+
+// _.isObjectLike( {} ); // -> true
+// _.isObjectLike( [] ); // -> true (in `isObject` - false)
+// _.isObjectLike( new function () {} ); // -> true
+
 var isObjectLike = function ( value ) {
   return !!value && typeof value == 'object';
 };
@@ -350,12 +312,12 @@ var fnToString = fn.toString,
 
 /**
  * Returns true if `value` is a plain object.
- *
- * For example:
- * _.isPlainObject( {} ); // -> true
- * _.isPlainObject( [] ); // -> false
- * _.isPlainObject( new function () {} ); // -> false
  */
+
+// _.isPlainObject( {} ); // -> true
+// _.isPlainObject( [] ); // -> false
+// _.isPlainObject( new function () {} ); // -> false
+
 var isPlainObject = function ( value ) {
   if ( !isObject( value ) ) {
     return false;
@@ -370,35 +332,29 @@ var isPlainObject = function ( value ) {
 
 /**
  * Returns true if `value` is a primitive.
- *
- * For example:
- * _.isPrimitive( null ); // -> true
- * _.isPrimitive( Symbol() ); // -> true
- * _.isPrimitive( new Boolean() ); // -> false
  */
+
+// _.isPrimitive( null ); // -> true
+// _.isPrimitive( Symbol() ); // -> true
+// _.isPrimitive( new Boolean() ); // -> false
+
 var isPrimitive = function ( value ) {
-
-  if ( !value ) {
-    return true;
-  }
-
-  var type = typeof value;
-
-  return type != 'object' && type != 'function';
-
+  return !value ||
+    typeof value != 'object' &&
+    typeof value != 'function';
 };
 
 var MAX_SAFE_INT = 9007199254740991,
     MIN_SAFE_INT = -MAX_SAFE_INT;
 
 /**
- * Returns true if `value` is a safe integer primitive or object.
- *
- * For example:
- * _.isSafeInteger( new Number() ); // -> true
- * _.isSafeInteger( Number.MIN_SAFE_INTEGER ); // -> true
- * _.isSafeInteger( Number.MIN_VALUE ); // -> false
+ * Returns true if `value` is a safe integer primitive.
  */
+
+// _.isSafeInteger( new Number() ); // -> false (in older versions - true)
+// _.isSafeInteger( Number.MIN_SAFE_INTEGER ); // -> true
+// _.isSafeInteger( Number.MIN_VALUE ); // -> false
+
 var isSafeInteger = function ( value ) {
   return isFinite( value ) &&
     value <= MAX_SAFE_INT &&
@@ -408,13 +364,13 @@ var isSafeInteger = function ( value ) {
 
 /**
  * Returns true if `value` represents a DOM element.
- *
- * For example:
- * _.isDOMElement( window ); // -> true
- * _.isDOMElement( document ); // -> true
- * _.isDOMElement( document.body ); // -> true
- * _.isDOMElement( document.createTextNode( '' ) ); // -> true
  */
+
+// _.isDOMElement( window ); // -> true
+// _.isDOMElement( document ); // -> true
+// _.isDOMElement( document.body ); // -> true
+// _.isDOMElement( document.createTextNode( '' ) ); // -> true
+
 var isDOMElement = function ( value ) {
   if ( !isObjectLike( value ) ) {
     return false;
@@ -427,33 +383,30 @@ var isDOMElement = function ( value ) {
   var nodeType = value.nodeType;
 
   return nodeType === 1 || // ELEMENT_NODE
-    nodeType === 3 || // TEXT_NODE
-    nodeType === 8 || // COMMENT_NODE
-    nodeType === 9 || // DOCUMENT_NODE
-    nodeType === 11; // DOCUMENT_FRAGMENT_NODE
+         nodeType === 3 || // TEXT_NODE
+         nodeType === 8 || // COMMENT_NODE
+         nodeType === 9 || // DOCUMENT_NODE
+         nodeType === 11;  // DOCUMENT_FRAGMENT_NODE
 };
 
 /**
- * Returns true if `value` represents a string primitive or object.
- *
- * For example:
- * _.isString( '' ); // -> true
- * _.isString( new String() ) -> true
+ * Returns true if `value` represents a string primitive.
  */
+
+// _.isString( '' ); // -> true
+// _.isString( new String() ) -> false (in older versions - true)
+
 var isString = function ( value ) {
-  return value != null && (
-    typeof value == 'string' ||
-    typeof value == 'object' &&
-    toString.call( value ) == '[object String]' );
+  return typeof value == 'string';
 };
 
 /**
  * Returns true if `value` represents a symbol primitive or object.
- *
- * For example:
- * _.isString( Symbol() ); // -> true
- * _.isString( Object( Symbol() ) ) -> true
  */
+
+// _.isString( Symbol() ); // -> true
+// _.isString( Object( Symbol() ) ) -> true
+
 var isSymbol = function ( value ) {
   return !!value && (
     typeof value == 'symbol' ||
@@ -463,23 +416,22 @@ var isSymbol = function ( value ) {
 
 /**
  * Returns true if `value` represents a Window instance.
- *
- * For example:
- * _.isWindow( window ); // -> true
- * _.isWindow( new function () { this.window = this; } ) -> false
  */
+
+// _.isWindow( window ); // -> true
+// _.isWindow( new function () { this.window = this; } ) // -> false
+
 var isWindow = function ( value ) {
   return isWindowLike( value ) && toString.call( value ) == '[object Window]';
 };
 
 /*
- * Returns true if `value` represents a Window instance,
- * faster than `_.isWindow`.
- *
- * For example:
- * _.isWindow( window ); // -> true
- * _.isWindow( new function () { this.window = this; } ) -> true
+ * Returns true if `value` represents a Window instance, faster than `_.isWindow`.
  */
+
+// _.isWindow( window ); // -> true
+// _.isWindow( new function () { this.window = this; } ) // -> true
+
 var isWindowLike = function ( value ) {
   return isObjectLike( value ) && value.window === value;
 };
@@ -488,19 +440,20 @@ var isWindowLike = function ( value ) {
 
 /**
  * Returns or set and returns a value of `path`.
- *
- * For example:
- *
- * var nested = {};
- *
- * baseAccessor(
- *   nested,
- *   toPath( 'one.two.three' ),
- *   0, // offset from right
- *   3, // value to set
- *   true ); // -> 3
- *
- * Now `nested` is:
+ */
+
+// var nested = {};
+//
+// baseAccessor(
+//   nested,
+//   toPath( 'one.two.three' ),
+//   0, // offset from right
+//   3, // value to set
+//   true ); // we want to set the value
+// // -> 3
+
+/**
+ * nested mutated into:
  * {
  *   one: {
  *     two: {
@@ -509,6 +462,7 @@ var isWindowLike = function ( value ) {
  *   }
  * }
  */
+
 var baseAccessor = function ( object, path, offset, value, setValue ) {
   var i = 0,
       len = path.length - offset,
@@ -535,13 +489,12 @@ var baseAccessor = function ( object, path, offset, value, setValue ) {
   return object;
 };
 
+// var object = {};
+// var expander = [ 2, 1, 3 ];
+// var keys = getKeys( expander ); // -> [ '0', '1', '2' ]
+// baseAssign( object, expander, keys );
+
 /**
- * var object = {};
- * var expander = [ 2, 1, 3 ];
- * var keys = getKeys( expander ); // -> [ '0', '1', '2' ]
- *
- * baseAssign( object, expander, keys );
- *
  * object is:
  * {
  *   '0': 2,
@@ -549,6 +502,7 @@ var baseAccessor = function ( object, path, offset, value, setValue ) {
  *   '2': 3
  * }
  */
+
 var baseAssign = function ( object, expander, keys ) {
   var i = 0,
       length = keys.length;
@@ -625,7 +579,8 @@ if ( support.defineProperty !== 2 ) {
       }
 
       if ( has( 'writable', descriptor ) ) {
-        throw TypeError( ERR_INVALID_PROPERTY_DESCRIPTOR );
+        throw TypeError( 'Invalid property descriptor.' +
+          ' Cannot both specify accessors and a value or writable attribute' );
       }
 
       if ( support.defineGetter ) {
@@ -653,15 +608,20 @@ if ( support.defineProperty !== 2 ) {
 }
 
 /**
- * var values = [ 0, '1', '2', 3 ];
- *
- * var numbers = baseFilter(
- *   values, // iterable to filter
- *   isNumber, // iteratee
- *   null, // context for iteratee
- *   false ); // invert iteratee return value (for reject)
- * // -> [ 0, 3 ]
+ * Filters the `iterable` array, leaving only
+ * those elements for which the` iteratee`
+ * function returns true. It creates a new array!
  */
+
+// var values = [ 0, '1', '2', 3 ];
+//
+// var numbers = baseFilter(
+//   values, // iterable to filter
+//   isNumber, // iteratee
+//   null, // context for iteratee
+//   false ); // invert iteratee return value (for reject)
+// // -> [ 0, 3 ]
+
 var baseFilter = function ( iterable, iteratee, context, not ) {
   var i = 0,
       length = getLength( iterable ),
@@ -682,24 +642,29 @@ var baseFilter = function ( iterable, iteratee, context, not ) {
 };
 
 /**
- * var weirdData = {
- *   zero: 0,
- *   one: '1',
- *   two: 2
- * };
- *
- * var iteratee = function ( value, key, object ) {
- *   return key.length > 3 || typeof value != this;
- * };
- *
- * var values = baseFilterObject(
- *   weirdData, // object to filter
- *   iteratee, // iteratee
- *   'number', // context for iteratee
- *   getKeys( weirdData ),
- *   true ); // invert iteratee return value (for reject)
- * // -> { two: 2 }
+ * Filters the `object`, leaving only those
+ * elements for which the` iteratee` function
+ * returns true. It creates a new object!
  */
+
+// var weirdData = {
+//   zero: 0,
+//   one: '1',
+//   two: 2
+// };
+//
+// var weirdIteratee = function ( value, key, object ) {
+//   return key.length > 3 || typeof value != this;
+// };
+//
+// var values = baseFilterObject(
+//   weirdData, // object to filter
+//   weirdIteratee, // iteratee
+//   'number', // `this` in iteratee
+//   getKeys( weirdData ),
+//   true ); // invert iteratee return value (for reject)
+// // -> { two: 2 }
+
 var baseFilterObject = function ( object, iteratee, context, keys, not ) {
   var i = 0,
       length = keys.length,
@@ -716,6 +681,16 @@ var baseFilterObject = function ( object, iteratee, context, keys, not ) {
 
   return filtered;
 };
+
+/**
+ * Flattens a multidimensional array into a less
+ * multidimensional array.
+ * Taken from someone, but I do not remember from whom (sorry).
+ */
+
+// var confusingArray = [ [ [ [ [ [ 'array' ] ] ] ] ] ];
+// baseFlatten( confusingArray, [], Infinity ); // -> [ 'array' ]
+// baseFlatten( confusingArray, [], 6 - 2 ); // -> [ [ 'array' ] ]
 
 var baseFlatten = function ( iterable, temp, depth ) {
   var i = 0,
@@ -782,11 +757,19 @@ var baseForIn = function ( object, iteratee, context, keys, fromRight ) {
 support.indexOf = !!arr.indexOf;
 support.lastIndexOf = !!arr.lastIndexOf;
 
+/**
+ * Returns the first (or last) position of the
+ * found `search` element in the `iterable`
+ * array. Unlike the standard implementation
+ * of ES5, this method can find NaN.
+ */
 var baseIndexOf = function ( iterable, search, fromIndex, fromRight ) {
   if ( support.indexOf && search === search ) {
     if ( !fromRight ) {
       return arr.indexOf( iterable, search, fromIndex );
-    } else if ( support.lastIndexOf ) {
+    }
+
+    if ( support.lastIndexOf ) {
       return arr.lastIndexOf( iterable, search, fromIndex );
     }
   }
@@ -820,8 +803,16 @@ var baseIndexOf = function ( iterable, search, fromIndex, fromRight ) {
   return -1;
 };
 
+/**
+ * Creates a new object with keys from `object`
+ * values ​​and values ​​from `object` keys.
+ */
+
+// baseInvert( { a: 1, b: 2 } );
+// // -> { 1: 'a', 2: 'b' }
+
 var baseInvert = function ( object, keys ) {
-  var inverted = {}, // create( getPrototypeOf( object ) ),
+  var inverted = {},
       i = keys.length - 1,
       key;
 
@@ -837,7 +828,7 @@ support.keys = Object.keys ?
   1 : 0;
 
 /**
- * `Object.keys` polyfill.
+ * Base implementation of `Object.keys` polyfill.
  */
 if ( support.keys !== 2 ) {
   if ( !support.keys ) {
@@ -879,10 +870,17 @@ if ( support.keys !== 2 ) {
       }
     }
 
-    return support.keys ? keys : fix_keys( keys, object );
+    if ( support.keys ) {
+      return keys;
+    }
+
+    return fix_keys( keys, object );
   };
 }
 
+/**
+ * Base implementation of `_.map` and `_mapRight` (works only with array-like objects).
+ */
 var baseMap = function ( iterable, iteratee, context, fromRight ) {
   var length = getLength( iterable ),
       result = Array( length ),
@@ -900,27 +898,30 @@ var baseMap = function ( iterable, iteratee, context, fromRight ) {
 };
 
 /**
- * var User = function ( name, age ) {
- *   this.name = name;
- *   this.age = age;
- * };
- *
- * User.getAge = function ( user ) {
- *   return user.age;
- * };
- *
- * var users = {
- *   Josh: new User( 'Josh', 1243 ),
- *   JSON: new User( 'JSON', -1 )
- * };
- *
- * var ages = baseMapObject(
- *   users, // object to map
- *   User.getAge, // iteratee
- *   null, // context for iteratee
- *   getKeys( users ) ); // properties to map in object
- * // -> { Josh: 1243, JSON: -1 }
+ * Base implementation of `_.map` (works not only with array-like objects).
  */
+
+// var User = function ( name, age ) {
+//   this.name = name;
+//   this.age = age;
+// };
+//
+// User.getAge = function ( user ) {
+//   return user.age;
+// };
+//
+// var users = {
+//   Josh: new User( 'Josh', 1243 ),
+//   JSON: new User( 'JSON', -Infinity )
+// };
+//
+// var ages = baseMapObject(
+//   users, // object to map
+//   User.getAge, // iteratee
+//   null, // context for iteratee
+//   getKeys( users ) ); // properties to map in object
+// // -> { Josh: 1243, JSON: -1 }
+
 var baseMapObject = function ( object, iteratee, context, keys ) {
   var length = keys.length,
       result = {},
@@ -936,16 +937,14 @@ var baseMapObject = function ( object, iteratee, context, keys ) {
 };
 
 /**
- * Merges `iterable` with `expander`.
- *
- * Examples:
- *
- * var iterable = [ 'flowers', 'john' ];
- * var expander = [ 'numbers', 'universe' ];
- *
- * baseMerge( iterable, expander );
- * // -> [ 'flowers', 'john', 'numbers', 'universe' ]
+ * Merges the `iterable` array with the `expander` array.
  */
+
+// var iterable = [ 'flowers', 'john' ];
+// var expander = [ 'numbers', 'universe' ];
+// baseMerge( iterable, expander );
+// // -> [ 'flowers', 'john', 'numbers', 'universe' ]
+
 var baseMerge = function ( iterable, expander ) {
   var i = 0,
       length = expander.length;
@@ -958,6 +957,15 @@ var baseMerge = function ( iterable, expander ) {
 
   return iterable;
 };
+
+/**
+ * Base implementation of `_.range` and `_.rangeRight`.
+ * Returns an array with a range of numbers
+ * from `start` to` end` with the `step`.
+ */
+
+// baseRange( false, 0, 5, 2 )
+// // -> [ 0, 2, 4 ] (Probably. I do not know)
 
 var baseRange = function ( reverse, start, end, step ) {
   var i = -1,
@@ -972,10 +980,16 @@ var baseRange = function ( reverse, start, end, step ) {
   return temp;
 };
 
+/**
+ * Returns random element from the `iterable` array.
+ */
 var baseSample = function ( iterable ) {
   return iterable[ random( 0, getLength( iterable ) - 1, false ) ];
 };
 
+/**
+ * Shuffles the `iterable` array. This method mutates array!
+ */
 var baseShuffle = function ( iterable, size ) {
   var index = 0,
       length = getLength( iterable ),
@@ -1000,6 +1014,11 @@ var baseShuffle = function ( iterable, size ) {
   return iterable;
 };
 
+/**
+ * Executes the `callback` function
+ * `times` times, and returns an array
+ * with the results of its execution.
+ */
 var baseTimes = function ( times, callback ) {
   var i = 0,
       results = Array( times );
@@ -1011,6 +1030,10 @@ var baseTimes = function ( times, callback ) {
   return results;
 };
 
+/**
+ * Returns a valid index for an array with
+ * a length of `length` from` value`.
+ */
 var baseToIndex = function ( value, length ) {
   if ( !length || !value ) {
     return 0;
@@ -1307,7 +1330,7 @@ var getType = function ( value ) {
 };
 
 var getIteratee = function ( value ) {
-  if ( isFunctionLike( value ) ) {
+  if ( typeof value == 'function' ) {
     return value;
   }
 
@@ -1412,7 +1435,7 @@ var getTime = Date.now || function () {
  * Returns a function that can only be called `n` times.
  */
 var before = function ( n, target ) {
-  if ( !isFunctionLike( target ) ) {
+  if ( typeof target != 'function' ) {
     throw TypeError( ERR_FUNCTION_EXPECTED );
   }
 
@@ -2214,31 +2237,6 @@ var unique = function () {
   };
 }();
 
-var unzip = function ( zip ) {
-  var zip_len = zip.length,
-      i = zip_len - 1,
-      max = 0,
-      len, res, j, val;
-
-  for ( ; i >= 0; --i ) {
-    if ( ( len = zip[ i ].length ) > max ) {
-      max = len;
-    }
-  }
-
-  res = Array( max );
-
-  for ( i = max - 1; i >= 0; --i ) {
-    val = res[ i ] = Array( zip_len );
-
-    for ( j = zip_len - 1; j >= 0; --j ) {
-      val[ j ] = zip[ j ][ i ];
-    }
-  }
-
-  return res;
-};
-
 var without = function ( iterable ) {
   var i = 0,
       length = ( iterable = toObject( iterable ) ).length,
@@ -2255,10 +2253,6 @@ var without = function ( iterable ) {
   }
 
   return temp;
-};
-
-var zip = function () {
-  return unzip( arguments );
 };
 
 var defaults = function ( defaults, object ) {
@@ -2321,7 +2315,7 @@ var eventprops = [
   'type',          'which',          'isTrusted'
 ];
 
-// and this implemented from jquery
+// Based on jQuery.Event
 var Event = function ( source, options ) {
   if ( source && source.type !== undefined ) {
     var i = eventprops.length - 1,
@@ -2344,7 +2338,7 @@ var Event = function ( source, options ) {
   }
 
   if ( options !== undefined ) {
-    baseAssign( this, options, getKeys( options ) );
+    assign( this, options, getKeys( options ) );
   }
 
   this.timeStamp = timestamp();
@@ -2389,150 +2383,146 @@ Event.prototype = {
 
 support.addEventListener = 'addEventListener' in window;
 
-// #event
-// based on Jonathan Neal addEventListener() polyfill.
-// https://gist.github.com/jonathantneal/3748027
-var event = function () {
-  var ev = {},
-      list = ev.list = create( null );
+/**
+ * Based on Jonathan Neal `addEventListener` polyfill.
+ * https://gist.github.com/jonathantneal/3748027
+ */
 
-  var fixType = ev.iefixtype = function ( type ) {
-    return type === 'DOMContentLoaded' ?
-      'onreadystatechange' : 'on' + type;
-  };
+var __event_list = create( null );
 
-  var add = ev.add = function ( target, type, listener, useCapture, one ) {
-    var wrapper;
+var event = {
+  /**
+   * Adds the event listener to the target,  with considering IE.
+   */
+  on: function ( target, type, listener, use_capture, one ) {
+    var item;
 
-    if ( useCapture === undefined ) {
-      useCapture = false;
+    if ( use_capture === undefined ) {
+      use_capture = false;
     }
 
+    item = {
+      use_capture: use_capture,
+      listener: listener,
+      target: target,
+      one: one
+    };
+
     if ( support.addEventListener ) {
-      target.addEventListener( type, ( wrapper = one ?
-        function ( event ) {
-          remove( target, type, listener, useCapture );
-          listener.call( target, event );
-        } : listener ), useCapture );
-    } else {
-      if ( typeof listener != 'function' ) {
-        return warn( 'non-function addEventListener not implemented' );
+      if ( one ) {
+        item.wrapper = function ( ev ) {
+          event.off( target, type, listener, use_capture );
+          listener.call( target, ev );
+        };
+      } else {
+        item.wrapper = listener;
       }
 
-      wrapper = function ( event ) {
+      target.addEventListener( type, item.wrapper, use_capture );
+    } else if ( typeof listener == 'function' ) {
+      item.wrapper = function ( ev ) {
         if ( type === 'DOMContentLoaded' && target.readyState !== 'complete' ) {
           return;
         }
 
         if ( one ) {
-          remove( target, type, listener, useCapture );
+          event.off( target, type, listener, use_capture );
         }
 
-        event = new Event( event );
-        event.type = type;
-        listener.call( target, event );
+        ev = new Event( ev || window.event );
+        ev.type = type;
+        listener.call( target, ev );
       };
 
-      target.attachEvent( fixType( type ), wrapper );
+      target.attachEvent(
+        item.fixed_type = event.__fix_type( type ),
+        item.wrapper );
+    } else {
+      throw TypeError( 'This functionality not implemented' );
     }
 
-    ( list[ type ] || ( list[ type ] = [] ) )
-      .push( [ target, listener, useCapture, wrapper, one ] );
-  };
+    if ( __event_list[ type ] ) {
+      __event_list[ type ].push( item );
+    } else {
+      __event_list[ type ] = [ item ];
+    }
+  },
 
-  var remove_all = function ( value, type ) {
-    remove( this, type );
-  };
+  /**
+   * Removes the event listener (or listeners) of the target, with considering IE.
+   */
 
-  var remove = ev.remove = function ( target, type, listener, useCapture ) {
+  // // remove click alert listener:
+  // event.off( window, 'click', alert );
+  // // remove all click listeners:
+  // event.off( window, 'click' );
+  // // remove all listeners:
+  // event.off( window );
+
+  off: function ( target, type, listener, use_capture ) {
+    var i;
+
+    // remove all listeners.
     if ( type === undefined ) {
-      baseForIn( list, remove_all, target, getKeys( list ), true );
+      for ( i = types.length - 1; i >= 0; --i ) {
+        event.off( target, types[ i ] );
+      }
+
       return;
     }
 
-    var i = 0,
-        filtered = list[ type ],
-        removeAll = listener === undefined,
-        fix, item;
+        // event.off( target, type );
+    var remove_all = listener === undefined,
+        items = __event_list[ type ],
+        item;
 
-    if ( !filtered ) {
+    if ( !items ) {
       return;
     }
 
-    if ( useCapture === undefined ) {
-      useCapture = false;
+    if ( use_capture === undefined ) {
+      use_capture = false;
     }
 
-    if ( !support.addEventListener ) {
-      fix = fixType( type );
-    }
+    for ( i = items.length - 1; i >= 0; --i ) {
+      item = items[ i ];
 
-    for ( ; i < filtered.length; ++i ) {
-      item = filtered[ i ];
-
-      if ( item[ 0 ] !== target ||
-        !removeAll && (
-          item[ 1 ] !== listener ||
-          item[ 2 ] !== useCapture ) )
+      if ( item.target !== target ||
+        !remove_all && (
+          item.listener !== listener ||
+          item.use_capture !== use_capture ) )
       {
         continue;
       }
 
-      filtered.splice( i--, 1 );
+      items.splice( i--, 1 );
 
-      if ( !filtered.length ) {
-        delete list[ type ];
+      if ( !items.length ) {
+        delete __event_list[ type ];
       }
 
       if ( support.addEventListener ) {
-        target.removeEventListener( type, item[ 3 ], item[ 2 ] );
+        target.removeEventListener( type, item.wrapper, item.use_capture );
       } else {
-        target.detachEvent( fix, item[ 3 ] );
+        target.detachEvent( item.fixed_type, item.wrapper );
       }
     }
-  };
+  },
 
-  // this not tested
-  var copy = ev.copy = function ( a, b, deep, types ) {
-    if ( !types ) {
-      types = getKeys( list );
-    }
+  // event.on( window, 'some-event', function ( event ) {
+  //   alert( event.some_data );
+  // } );
+  //
+  // event.trigger( window, 'some-event', {
+  //   some_data: 'something'
+  // } );
+  //
+  // // trigger all 'some-event' listeners.
+  // event.trigger( null, 'some-event' );
 
+  trigger: function ( target, type, data ) {
     var i = 0,
-        len = types.len,
-        type, items, item, j, a_children, b_children;
-
-    for ( ; i < len; ++i ) {
-      items = list[ type = types[ i ] ];
-
-      if ( !items ) {
-        continue;
-      }
-
-      for ( j = 0; j < items.length; ++j ) {
-        item = items[ j ];
-
-        if ( item[ 0 ] === a ) {
-          add( b, type, item[ 1 ], item[ 2 ], item[ 4 ] );
-        }
-      }
-    }
-
-    if ( deep ) {
-      a_children = a.childNodes;
-      b_children = b.childNodes;
-
-      for ( i = 0, len = b_children.length; i < len; ++i ) {
-        copy( b_children[ i ], a_children[ i ], deep, types );
-      }
-    }
-
-    return a;
-  };
-
-  ev.dispatch = function ( target, type, data ) {
-    var i = 0,
-        items = list[ type ],
+        items = __event_list[ type ],
         item, event;
 
     if ( !items ) {
@@ -2542,20 +2532,60 @@ var event = function () {
     for ( ; i < items.length; ++i ) {
       item = items[ i ];
 
-      if ( item[ 0 ] !== target ) {
+      if ( item.target !== target && target !== null ) {
         continue;
       }
 
       event = new Event( type, data );
       event.target = target;
       event.isTrusted = false;
-      item[ 3 ].call( target, event );
+      item.wrapper.call( target, event );
     }
-  };
+  },
+
+  copy: function ( target, source, deep, types ) {
+    if ( !types ) {
+      types = getKeys( __event_list );
+    }
+
+    var i = types.length - 1,
+        type, items, item, j, len,
+        t_children, s_children;
+
+    for ( ; i >= 0; --i ) {
+      items = __event_list[ type = types[ i ] ];
+
+      if ( !items ) {
+        continue;
+      }
+
+      for ( j = 0, len = items.length; j < len; ++j ) {
+        item = items[ j ];
+
+        if ( item.target === source ) {
+          event.on( target, type, item.listener, item.use_capture, item.one );
+        }
+      }
+    }
+
+    if ( deep ) {
+      t_children = target.childNodes;
+      s_children = source.childNodes;
+
+      for ( i = t_children.length - 1; i >= 0; --i ) {
+        event.copy( t_children[ i ], s_children[ i ], deep, types );
+      }
+    }
+
+    return target;
+  },
 
   // from jQuery
-  ev.which = function ( event ) {
+  which: function ( event ) {
+    var button;
+
     if ( !event.type.indexOf( 'touch' ) ) {
+      // It seems to me that this isn't correctly
       return 1;
     }
 
@@ -2564,12 +2594,12 @@ var event = function () {
       return event.charCode != null ? event.charCode : event.keyCode;
     }
 
-    var button = event.button;
+    button = event.button;
 
     // Add which for click: 1 === left; 2 === middle; 3 === right
-    if ( !event.which &&
-      button !== undefined &&
-      /^(?:mouse|pointer|contextmenu|drag|drop)|click/.test( event.type ) ) {
+    if ( !event.which && button !== undefined &&
+      /^(?:mouse|pointer|contextmenu|drag|drop)|click/.test( event.type ) )
+    {
       return button & 1 ?
         1 : button & 2 ?
         3 : button & 4 ?
@@ -2577,14 +2607,21 @@ var event = function () {
     }
 
     return event.which;
-  };
+  },
 
-  return ev;
-}();
+  __fix_type: function ( type ) {
+    if ( type === 'DOMContentLoaded' ) {
+      return 'onreadystatechange';
+    }
 
-// #getcomputedstyle-polyfill
-// adapted from Jonathan Neal getComputedStyle polyfill.
-// https://github.com/jonathantneal/polyfill/blob/master/polyfills/getComputedStyle/polyfill.js
+    return 'on' + type;
+  }
+};
+
+/**
+ * Adapted from Jonathan Neal getComputedStyle polyfill.
+ * https://github.com/jonathantneal/polyfill/blob/master/polyfills/getComputedStyle/polyfill.js
+ */
 var getComputedStyle = window.getComputedStyle || function () {
   var toDOMString = function () {
     var toDOMString = function ( letter ) {
@@ -2661,8 +2698,7 @@ var getComputedStyle = window.getComputedStyle || function () {
         continue;
       }
 
-      push.call( style, name == 'styleFloat' ?
-        'float' : toDOMString( name ) );
+      push.call( style, name == 'styleFloat' ? 'float' : toDOMString( name ) );
 
       if ( name == 'styleFloat' ) {
         style[ 'float' ] = currentStyle[ name ];
@@ -2727,8 +2763,8 @@ var getComputedStyle = window.getComputedStyle || function () {
  *
  * MIT license
  */
-var frame = function () {
-  var frame = {},
+var timer = function () {
+  var timer = {},
       suffix = 'AnimationFrame',
 
   request = window[ 'request' + suffix ] ||
@@ -2742,15 +2778,14 @@ var frame = function () {
     window[ 'mozCancelRequest' + suffix ];
 
   // iOS6 is buggy
-  if ( !request ||
-    !cancel ||
+  if ( !request || !cancel ||
     /iP(ad|hone|od).*OS\s6/.test( window.navigator.userAgent ) )
   {
     var lastTime = 0,
         frameDuration = 1000 / 60;
 
-    frame.requestframe = function ( frame ) {
-      var now = getTime(),
+    timer.request = function ( frame ) {
+      var now = timestamp(),
           nextTime = max( lastTime + frameDuration, now );
 
       return window.setTimeout( function () {
@@ -2759,18 +2794,18 @@ var frame = function () {
       }, nextTime - now );
     };
 
-    frame.cancelframe = window.clearTimeout;
+    timer.cancel = window.clearTimeout;
   } else {
-    frame.requestframe = function ( frame ) {
+    timer.request = function ( frame ) {
       return request( frame );
     };
 
-    frame.cancelframe = function ( index ) {
+    timer.cancel = function ( index ) {
       return cancel( index );
     };
   }
 
-  return frame;
+  return timer;
 }();
 
 var matches = window.Element && (
@@ -2819,60 +2854,71 @@ function ( selector ) {
   return null;
 };
 
-var RE_SINGLE_TAG = /^(<([\w-]+)><\/[\w-]+>|<([\w-]+)(\s*\/)?>)$/;
-
 var parseHTML = function ( data, context ) {
-  var match = RE_SINGLE_TAG.exec( data );
+  var match = regexps.single_tag.exec( data );
 
-  if ( context === undefined ) {
-    context = document;
+  if ( match ) {
+    return [
+      document.createElement( match[ 2 ] || match[ 3 ] )
+    ];
   }
 
-  return match ?
-    [ document.createElement( match[ 2 ] || match[ 3 ] ) ] :
-    baseCloneArray( createFragment( [ data ], context ).childNodes );
+  return baseCloneArray( createFragment( [ data ], context || document ).childNodes );
 };
 
 support.getElementsByClassName = 'getElementsByClassName' in document;
 
-var RE_SIMPLE_SELECTOR = /^(?:#([\w-]+)|([\w-]+)|\.([\w-]+))$/;
-
 var DOMWrapper = function ( selector ) {
+  var match, list, i;
+
+  // _();
   if ( !selector ) {
     return;
   }
 
+  // _( window );
   if ( isDOMElement( selector ) ) {
-    this[ 0 ] = selector;
-    this.length = 1;
-    return;
+    this.__set_one( selector );
+    return this;
   }
-
-  var match, list, i;
 
   if ( typeof selector == 'string' ) {
     if ( selector.charAt( 0 ) != '<' ) {
-      if ( !( match = RE_SIMPLE_SELECTOR.exec( selector ) ) ||
-        !support.getElementsByClassName && match[ 3 ] )
-      {
+      match = regexps.selector.exec( selector );
+
+      // _( 'a > b + c' );
+      if ( !match || !support.getElementsByClassName && match[ 3 ] ) {
         list = document.querySelectorAll( selector );
+
+      // _( '#id' );
       } else if ( match[ 1 ] ) {
-        if ( ( list = document.getElementById( match[ 1 ] ) ) ) {
-          this[ 0 ] = list;
-          this.length = 1;
+        list = document.getElementById( match[ 1 ] );
+
+        if ( list ) {
+          this.__set_one( list );
         }
 
         return;
+
+      // _( 'tag' );
       } else if ( match[ 2 ] ) {
         list = document.getElementsByTagName( match[ 2 ] );
+
+      // _( '.class' );
       } else {
         list = document.getElementsByClassName( match[ 3 ] );
       }
+
+    // _( '<div>' );
     } else {
       list = parseHTML( selector );
     }
+
+  // _( _( ... ) );
   } else if ( isArrayLikeObject( selector ) ) {
     list = selector;
+
+  // _( function ( _ ) { ... } );
   } else if ( typeof selector == 'function' ) {
     return new DOMWrapper( document ).ready( selector );
   } else {
@@ -2880,7 +2926,9 @@ var DOMWrapper = function ( selector ) {
   }
 
   if ( list ) {
-    for ( i = ( this.length = getLength( list ) ) - 1; i >= 0; --i ) {
+    this.length = getLength( list );
+
+    for ( i = this.length - 1; i >= 0; --i ) {
       this[ i ] = list[ i ];
     }
   }
@@ -2891,8 +2939,10 @@ var peako = function ( input ) {
 };
 
 var prototype = DOMWrapper.prototype = peako.prototype = peako.fn = {
-  constructor: peako,
-  length: 0,
+  __set_one: function ( element ) {
+    this[ 0 ] = element;
+    this.length = 1;
+  },
 
   get: function ( i ) {
     return i === undefined ?
@@ -3059,7 +3109,7 @@ var prototype = DOMWrapper.prototype = peako.prototype = peako.fn = {
       throw TypeError( ERR_INVALID_ARGS );
     }
 
-    byCallback = isFunctionLike( options );
+    byCallback = typeof options == 'function';
 
     for ( i = this.length - 1; i >= 0; --i ) {
       element = this[ i ];
@@ -3085,7 +3135,7 @@ var prototype = DOMWrapper.prototype = peako.prototype = peako.fn = {
   },
 
   is: function ( selector ) {
-    var byCallback = isFunctionLike( selector ),
+    var byCallback = typeof selector == 'function',
         i = this.length - 1,
         element;
 
@@ -3230,7 +3280,7 @@ var prototype = DOMWrapper.prototype = peako.prototype = peako.fn = {
   },
 
   not: function ( selector ) {
-    var byCallback = isFunctionLike( selector ),
+    var byCallback = typeof selector == 'function',
         i = 0,
         length = this.length,
         list = [],
@@ -3360,7 +3410,7 @@ var prototype = DOMWrapper.prototype = peako.prototype = peako.fn = {
     {
       callback( peako );
     } else {
-      event.add( document, 'DOMContentLoaded', function () {
+      event.on( document, 'DOMContentLoaded', function () {
         callback( peako );
       }, false, true );
     }
@@ -3381,7 +3431,7 @@ var prototype = DOMWrapper.prototype = peako.prototype = peako.fn = {
   filter: function ( selector ) {
     return this.pushStack( baseFilter( this, function ( element, i ) {
       return this ? selector.call( element, i, element ) : is( element, selector );
-    }, isFunctionLike( selector ), false ) );
+    }, typeof selector == 'function', false ) );
   },
 
   first: function () {
@@ -3480,7 +3530,7 @@ var prototype = DOMWrapper.prototype = peako.prototype = peako.fn = {
   },
 
   longtouch: function ( longtouch, touch, delay ) {
-    var ontouch = isFunctionLike( touch ),
+    var ontouch = typeof touch == 'function',
         touched = true,
         target, id;
 
@@ -3507,10 +3557,13 @@ var prototype = DOMWrapper.prototype = peako.prototype = peako.fn = {
 
         touched = true;
       } );
-  }
+  },
+
+  constructor: peako,
+  length: 0
 };
 
-forInRight( {
+forOwnRight( {
   value: 'value',
   text: 'textContent' in body ? 'textContent' : 'innerText',
   html: 'innerHTML'
@@ -3530,11 +3583,11 @@ forInRight( {
   };
 }, prototype );
 
-forIn( {
-  on: 'add',
-  one: 'add',
-  off: 'remove',
-  trigger: 'dispatch'
+forOwn( {
+  on: 'on',
+  one: 'on',
+  off: 'off',
+  trigger: 'trigger'
 }, function ( name, methodName ) {
   var one = methodName === 'one',
       off = methodName === 'off';
@@ -3572,7 +3625,7 @@ forIn( {
   };
 }, peako.fn );
 
-forInRight( {
+forOwnRight( {
   width: 'Width',
   height: 'Height'
 }, function ( name, methodName ) {
@@ -3616,7 +3669,7 @@ var getWindow = function ( element ) {
     document.defaultView || document.parentWindow : false;
 };
 
-forInRight( {
+forOwnRight( {
   scrollTop: 'pageYOffset',
   scrollLeft: 'pageXOffset'
 }, function ( offset, name ) {
@@ -3676,7 +3729,7 @@ var show = function () {
   }
 };
 
-forInRight( { hide: hide, show: show }, function ( method, name ) {
+forOwnRight( { hide: hide, show: show }, function ( method, name ) {
   this[ name ] = function () {
     return this.each( method );
   };
@@ -3799,14 +3852,15 @@ var access = function ( collection, callback, key, value, chainable, empty, raw 
   var bulk = key == null,
       i = 0,
       length = collection.length,
-      element;
+      element, keys, j, k_len;
 
   if ( !bulk && getType( key ) == 'object' ) {
     chainable = true;
-
-    forIn( key, function ( value, name ) {
-      this( collection, callback, name, value, chainable, empty, raw );
-    }, access );
+    k_len = ( keys = getKeys( key ) ).length;
+    
+    for ( j = 0; j < k_len; ++j ) {
+      access( collection, callback, keys[ j ], key[ keys[ j ] ], chainable, empty, raw );
+    }
   } else if ( value !== undefined ) {
     chainable = true;
 
@@ -3971,13 +4025,13 @@ var removeProp = function ( element, names ) {
   }
 };
 
-forInRight( { attr: attr, prop: prop }, function ( method, methodName ) {
+forOwnRight( { attr: attr, prop: prop }, function ( method, methodName ) {
   this[ methodName ] = function ( name, value ) {
     return access( this, method, name, value, arguments.length > 1, null );
   };
 }, prototype );
 
-forInRight( {
+forOwnRight( {
   removeAttr: removeAttr,
   removeProp: removeProp
 }, function ( method, methodName ) {
@@ -4086,12 +4140,11 @@ var classList = {
   }
 };
 
-// #promise-polyfill
-// Based on Taylor Hakes Promise polyfill.
-// https://github.com/taylorhakes/promise-polyfill
+/**
+ * Based on Taylor Hakes Promise polyfill.
+ * https://github.com/taylorhakes/promise-polyfill
+ */
 var Promise = window.Promise || function () {
-
-  // #promise
   var Promise = function ( executor ) {
     if ( !isObjectLike( this ) || !( this instanceof Promise ) ) {
       throw TypeError( this + ' is not a promise' );
@@ -4133,7 +4186,7 @@ var Promise = window.Promise || function () {
 
         var res = function ( value, args ) {
           try {
-            if ( !isPrimitive( value ) && isFunctionLike( value.then ) ) {
+            if ( !isPrimitive( value ) && typeof value.then == 'function' ) {
               value.then( function ( value ) {
                 res( value, args );
               }, reject );
@@ -4207,7 +4260,7 @@ var Promise = window.Promise || function () {
     onRejected: null
   };
 
-  // Memory leak?
+  // Memory leak! Need to rewrite this polyfill.
   var promises = [],
       wrappers = [];
 
@@ -4353,7 +4406,7 @@ baseForEach( [
   'touchcancel', 'load'
 ], function ( type ) {
   this[ type ] = function ( argument ) {
-    if ( !isFunctionLike( argument ) ) {
+    if ( typeof argument != 'function' ) {
       return this.trigger( type, argument );
     }
 
@@ -4389,11 +4442,11 @@ support.fetch = has( 'fetch', window ) &&
   has( 'Request', window ) &&
   has( 'Response', window );
 
-// #fetch-polyfill
-
 if ( !support.fetch ) {
-  // based on Cam Song `fetch` polyfill from
-  // https://github.com/camsong/fetch-ie8
+  /**
+   * based on Cam Song `fetch` polyfill from
+   * https://github.com/camsong/fetch-ie8
+   */
 
   var normalize_name = function ( name ) {
     if ( /[^\w-#$%&'*+.^`|~]/.test( name += '' ) ) {
@@ -4410,8 +4463,6 @@ if ( !support.fetch ) {
   var append = function ( value, name ) {
     this.append( name, value );
   };
-
-  // #headers
 
   Headers = function ( headers ) {
     this.map = {};
@@ -4563,8 +4614,6 @@ if ( !support.fetch ) {
     return method;
   };
 
-  // #request
-
   Request = function ( input, options ) {
     if ( options === undefined ) {
       options = {};
@@ -4647,8 +4696,6 @@ if ( !support.fetch ) {
 
     return headers;
   };
-
-  // #response
 
   Response = function ( body, options ) {
     if ( options !== undefined ) {
@@ -4816,8 +4863,6 @@ if ( !support.fetch ) {
     this.setRequestHeader( name, value );
   };
 
-  // #fetch
-
   fetch = function ( url, options ) {
     return new Promise( function ( resolve, reject ) {
       var request = !options && isPrototypeOf.call( Request.prototype, url ) ? url : new Request( url, options ),
@@ -4951,7 +4996,6 @@ peako.isArrayLikeObject = isArrayLikeObject;
 peako.isBoolean = isBoolean;
 peako.isFinite = isFinite;
 peako.isFunction = isFunction;
-peako.isFunctionLike = isFunctionLike;
 peako.isElement = isElement;
 peako.isElementLike = isElementLike;
 peako.isLength = isLength;
@@ -5012,11 +5056,9 @@ peako.trimEnd = trimEnd;
 peako.trimStart = trimStart;
 peako.type = getTypeCached;
 peako.unique = unique;
-peako.unzip = unzip;
 peako.values = getValues;
 peako.valuesIn = getValuesIn;
 peako.without = without;
-peako.zip = zip;
 peako.fetch = fetch;
 peako.cssNumbers = cssNumbers;
 peako.eventProps = eventprops;
@@ -5030,8 +5072,7 @@ peako.Promise = Promise;
 peako.Headers = Headers;
 peako.Request = Request;
 peako.Response = Response;
-peako.requestframe = frame.requestframe;
-peako.cancelframe = frame.cancelframe;
+peako.timer = timer;
 window.peako = window._ = peako;
 
-} )( window );
+} )( this );
