@@ -195,7 +195,7 @@ if ( touchable ) {
       this.renderer
         .clear()
         .stroke( this.colors[ this.state ] )
-        .polygon( this.x, this.y, 50, 8 );
+        .polygon( this.x, this.y, BIG_R, 8 );
 
       this.redraw = false;
       return this;
