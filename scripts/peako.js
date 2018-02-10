@@ -3583,7 +3583,7 @@ forOwnRight( {
   };
 }, prototype );
 
-forOwn( {
+forOwnRight( {
   on: 'on',
   one: 'on',
   off: 'off',
@@ -3757,24 +3757,22 @@ var cloneNode = function ( element, deep ) {
   return event.copy( element.cloneNode( deep ), element, deep );
 };
 
-var wrapMap = function () {
-  var map = {};
+var wrapMap = {
+  col     : [ 2, '<table><colgroup>', '</colgroup></table>' ],
+  tr      : [ 2, '<table><tbody>', '</tbody></table>' ],
+  defaults: [ 0, '', '' ]
+};
 
-  map.optgroup =
-    map.option = [ 1, '<select multiple="multiple">', '</select>' ];
+wrapMap.optgroup =
+  wrapMap.option = [ 1, '<select multiple="multiple">', '</select>' ];
 
-  map.tbody =
-    map.tfoot =
-    map.colgroup =
-    map.caption =
-    map.thead = [ 1, '<table>', '</table>' ];
+wrapMap.tbody =
+  wrapMap.tfoot =
+  wrapMap.colgroup =
+  wrapMap.caption =
+  wrapMap.thead = [ 1, '<table>', '</table>' ];
 
-  map.col = [ 2, '<table><colgroup>', '</colgroup></table>' ];
-  map.tr = [ 2, '<table><tbody>', '</tbody></table>' ];
-  map.th = map.td = [ 3, '<table><tbody><tr>', '</tr></tbody></table>' ];
-  map.defaults = [ 0, '', '' ];
-  return map;
-}();
+wrapMap.th = wrapMap.td = [ 3, '<table><tbody><tr>', '</tr></tbody></table>' ];
 
 var RE_HTML = /<|&#?\w+;/,
     RE_TAG_NAME = /<([a-z][^\s>]*)/i;

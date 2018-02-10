@@ -1,3 +1,5 @@
+/* jshint esversion: 5, unused: true, undef: true */
+/* global v6, _, document, platform, Float32Array */
 ;( function ( window, undefined ) {
 
 'use strict';
@@ -7,8 +9,7 @@ var pi = Math.PI,
     sin = Math.sin,
     sqrt = Math.sqrt,
     min = Math.min,
-    max = Math.max,
-    abs = Math.abs;
+    max = Math.max;
 
 var root = document.documentElement,
     size = min( root.clientWidth, root.clientHeight ),
@@ -74,18 +75,33 @@ var intersects = {
   }
 };
 
-// in Safari on iOS WebGL works slow
+/** WebGL slow in iOS Safari and on PC. */
 var safari = platform.os &&
   platform.os.family === 'iOS' &&
   platform.name === 'Safari';
 
 var touchable = 'ontouchend' in window,
-    // and on PC also
     mode = touchable && !safari ? 'webgl' : '2d';
 
 if ( touchable ) {
+  var BIG_R = 45,
+      SMALL_R = BIG_R * 0.6;
+
+  /** Makes from 3D-like normalized coordinates 2D. */
   var foo = function ( value, size ) {
     return ( value + 1 ) * 0.5 * size;
+  };
+
+  /** Converts touch zone with 3D coordinates in 2D. */
+  var get_touch_zone = function ( values, w, h ) {
+    var x1 = foo( values[ 0 ], w ),
+        y1 = foo( values[ 1 ], h ),
+        x2 = foo( values[ 2 ], w ),
+        y2 = foo( values[ 3 ], h );
+
+    return [
+      x1, y1, x2 - x1, y2 - y1
+    ];
   };
 
   // Yes, I know about all these
@@ -99,7 +115,14 @@ if ( touchable ) {
       while ( i > 0 ) {
         touch = touches[ --i ];
 
-        if ( intersects[ 'circle-point' ]( x, y, 50, touch.clientX, touch.clientY ) ) {
+        /** If a finger on the button, then say it. */
+        if ( intersects[ 'circle-point' ](
+          that.x,
+          that.y,
+          BIG_R,
+          touch.clientX,
+          touch.clientY ) )
+        {
           that.state = that.redraw = identifiers[ touch.identifier ] = true;
           break;
         }
@@ -116,51 +139,50 @@ if ( touchable ) {
         touch = touches[ i ];
         id = touch.identifier;
 
-        if ( intersects[ 'circle-point' ]( x, y, 50, touch.clientX, touch.clientY ) ) {
+        /** If a finger on the button, then say it. */
+        if ( intersects[ 'circle-point' ](
+          that.x,
+          that.y,
+          BIG_R,
+          touch.clientX,
+          touch.clientY ) )
+        {
           if ( !that.state ) {
             that.state = that.redraw = true;
           }
 
           identifiers[ id ] = true;
-        } else if ( identifiers[ id ] ) {
-          if ( that.state ) {
-            that.state = false;
-            that.redraw = true;
-          }
 
-          identifiers[ id ] = null;
+        /** Otherwise, if this finger was on the button before. */
+        } else if ( identifiers[ id ] ) {
+          that.finger_removed_from_button( id );
         }
       }
     };
 
     var touchend = function ( event ) {
-      var unset = true,
-          touches = event.changedTouches,
+      var touches = event.changedTouches,
           i = touches.length,
           id;
 
       while ( i > 0 ) {
+        /** If this finger was on the button before. */
         if ( identifiers[ id = touches[ --i ].identifier ] ) {
-          if ( unset ) {
-            that.state = unset = false;
-            that.redraw = true;
-          }
-
-          identifiers[ id ] = null;
+          that.finger_removed_from_button( id );
         }
       }
     };
 
     var that = this,
-        identifiers = [];
+        identifiers = that.__identifiers = [];
 
     var options = {
       mode: mode
     };
 
     that.renderer = v6( options ).noFill();
-    that.x = x = foo( x, that.renderer.width );
-    that.y = y = foo( y, that.renderer.height );
+    that.x = foo( x, that.renderer.width );
+    that.y = foo( y, that.renderer.height );
 
     _( window )
       .on( 'touchstart', touchstart )
@@ -179,6 +201,17 @@ if ( touchable ) {
       return this;
     },
 
+    finger_removed_from_button: function ( id ) {
+      /** For not to change the state to the same value multiple times. */
+      if ( this.state ) {
+        this.state = false;
+        this.redraw = true;
+      }
+
+      /** Say that this finger is no longer on the button. */
+      this.__identifiers[ id ] = null;
+    },
+
     colors: {
       'false': v6.rgba( 255, 0.5 ),
       'true': v6.rgba( 255 )
@@ -189,38 +222,42 @@ if ( touchable ) {
     constructor: Button
   };
 
-  var Stick = function ( x, y, touchZone ) {
-    var options = {
+  /** One stick of gamepad. */
+  var Stick = function ( options ) {
+    var renderer_options = {
       mode: mode
     };
 
     var that = this,
-        renderer = that.renderer = v6( options ).noFill(),
-        w = renderer.width,
-        h = renderer.height;
-
-    x = foo( x, w );
-    y = foo( y, h );
-
-    var identifiers = _.create( null ),
-        start = that.start = v6.vec2( x, y ),
-        location = that.location = v6.vec2();
-
-    touchZone = [
-      foo( touchZone[ 0 ], w ),
-      foo( touchZone[ 1 ], h ),
-      touchZone[ 2 ] * w,
-      touchZone[ 3 ] * h
-    ];
+        renderer = that.renderer =
+          v6( renderer_options ).noFill(),
+        identifiers = that.__identifiers = [],
+        start = that.start = v6.vec2(),
+        location = that.location = v6.vec2(),
+        touch_zone;
 
     var touchstart = function ( event ) {
       var touches = event.changedTouches,
           i = touches.length,
           unset = true,
-          touch, x, y;
+          touch, touched, x, y;
 
       while ( i > 0 ) {
-        if ( ( identifiers[ ( touch = touches[ --i ] ).identifier ] = intersects[ 'rectangle-point' ]( touchZone[ 0 ], touchZone[ 1 ], touchZone[ 2 ], touchZone[ 3 ], x = touch.clientX, y = touch.clientY ) ) && unset ) {
+        touch = touches[ --i ];
+
+        /** A finger on the stick touch zone? */
+        touched = identifiers[ touch.identifier ] =
+          intersects[ 'rectangle-point' ](
+            touch_zone[ 0 ],
+            touch_zone[ 1 ],
+            touch_zone[ 2 ],
+            touch_zone[ 3 ],
+            x = touch.clientX,
+            y = touch.clientY );
+
+        /** If yes, and this last event from the `touches` (reverse loop). */
+        if ( touched && unset ) {
+          /** Then handle it! */
           start.set( x, y );
           that.state = 1;
           that.redraw = unset = true;
@@ -232,11 +269,15 @@ if ( touchable ) {
     var touchmove = function ( event ) {
       var touches = event.changedTouches,
           i = touches.length,
-          touch, x, y;
+          touch;
 
       while ( i > 0 ) {
+        /** if this finger interacts with the stick (on `touchstart` was in the touch zone). */
         if ( identifiers[ ( touch = touches[ --i ] ).identifier ] ) {
-          location.set( touch.clientX - start[ 0 ], touch.clientY - start[ 1 ] ).limit( 50 );
+          /** Move the movable part of the stick. */
+          location
+            .set( touch.clientX - start[ 0 ], touch.clientY - start[ 1 ] )
+            .limit( BIG_R );
           that.state = 2;
           that.redraw = true;
           that._angle = that._value = null;
@@ -252,13 +293,11 @@ if ( touchable ) {
           id;
 
       while ( i > 0 ) {
+        /** if this finger interacts with the stick before. */
         if ( identifiers[ id = touches[ --i ].identifier ] ) {
           if ( unset ) {
-            location.set( 0, 0 );
-            start.set( x, y );
-            that.state = 0;
-            that.redraw = unset = true;
-            that._angle = that._value = null;
+            that.cancel();
+            unset = true;
           }
 
           identifiers[ id ] = false;
@@ -266,45 +305,76 @@ if ( touchable ) {
       }
     };
 
+    var resize = function ( event ) {
+      /** We'll call this function below. */
+      if ( event ) {
+        renderer.fullwindow();
+      }
+
+      touch_zone = get_touch_zone(
+        options.touch_zone,
+        renderer.width,
+        renderer.height );
+
+      that.x = foo( options.x, renderer.width );
+      that.y = foo( options.y, renderer.height );
+      that.cancel();
+    };
+
+    resize();
+
     _( window )
       .on( 'touchstart', touchstart )
       .on( 'touchmove', touchmove )
-      .on( 'touchend', touchend );
+      .on( 'touchend', touchend )
+      .on( 'resize', resize );
   };
 
   Stick.prototype = {
     show: function () {
-      var renderer = this.renderer,
-          start = this.start,
-          location = this.location;
-
-      renderer
+      this.renderer
+        .restore()
         .clear()
-        .setTransform( 1, 0, 0, 1, start[ 0 ], start[ 1 ] )
+        .save()
+        .setTransform( 1, 0, 0, 1, this.start[ 0 ], this.start[ 1 ] )
         .stroke( this.colors[ this.state ] )
-        .polygon( 0, 0, 50, 8 )
-        .polygon( location[ 0 ], location[ 1 ], 30, 8 );
+        .polygon( 0, 0, BIG_R, 8 )
+        .polygon( this.location[ 0 ], this.location[ 1 ], SMALL_R, 8 );
 
       this.redraw = false;
       return this;
     },
 
     value: function () {
-      return this._value == null ?
-        this._value = this.location.mag() / 50 :
-        this._value;
+      if ( this._value == null ) {
+        this._value = this.location.mag() / BIG_R;
+      }
+
+      return this._value;
     },
 
     angle: function () {
-      return this._angle == null ?
-        this._angle = this.location.angle() :
-        this._angle;
+      if ( this._angle == null ) {
+        this._angle = this.location.angle();
+      }
+
+      return this._angle;
+    },
+
+    cancel: function () {
+      this.location.set( 0, 0 );
+      this.start.set( this.x, this.y );
+      this.state = 0;
+      this.redraw = true;
+      this._angle = this._value = null;
+      this.__identifiers.length = 0;
+      return this;
     },
 
     colors: [
+      v6.rgba( 255, 0.3 ),
       v6.rgba( 255, 0.5 ),
-      v6.rgba( 255, 0.7 ),
-      v6.rgba( 255 )
+      v6.rgba( 255, 0.7 )
     ],
 
     state: 0,
@@ -414,10 +484,11 @@ Ship.prototype = {
       .save()
       .translate( this.location[ 0 ], this.location[ 1 ] )
       .rotate( this.angle )
-      .scale( this.xRadius, this.yRadius )
       .fill( true )
+      .noStroke()
       .drawVertices( this.vertices, this.n )
       .noFill()
+      .stroke( true )
       .restore();
 
     return this;
@@ -462,26 +533,26 @@ Ship.prototype = {
   },
 
   direction: 0,
-  xRadius: 15,
-  yRadius: 10,
+  rx: 15,
+  ry: 10,
   angle: 0,
   accelerationValue: 5,
   constructor: Ship
 };
 
 Ship.prototype.vertices = ( function () {
-  var n = Ship.prototype.n = 3,
+  var n = this.n = 3,
       i = n - 1,
       step = pi * 2 / n,
       vertices = new Float32Array( n * 2 );
 
   for ( ; i >= 0; --i ) {
-    vertices[     i * 2 ] = cos( i * step );
-    vertices[ 1 + i * 2 ] = sin( i * step );
+    vertices[     i * 2 ] = cos( i * step ) * this.rx;
+    vertices[ 1 + i * 2 ] = sin( i * step ) * this.ry;
   }
 
   return vertices;
-} )();
+} ).call( Ship.prototype );
 
 var bar = function () {
   if ( ui.hidden ) {
@@ -510,8 +581,8 @@ var update = function ( dt ) {
       asteroid.radius,
       ship.location[ 0 ],
       ship.location[ 1 ],
-      // max of xRadius, yRadius
-      ship.xRadius );
+      // max of rx, ry
+      ship.rx );
 
     if ( destroyed ) {
       return bar();
@@ -520,8 +591,8 @@ var update = function ( dt ) {
 
   if ( ui.hidden ) {
     if ( !touchable || stick.state !== 2 ) {
-      // 0.75 PI per second
-      steering = pi * 0.75 * dt;
+      // 1 PI per second
+      steering = pi * 1 * dt;
 
       if ( keys[ KEYS.LARR ] ) {
         ship.angle -= steering;
@@ -551,6 +622,7 @@ var update = function ( dt ) {
       ( touchable && button.state );
 
     if ( shoots && time > threshold ) {
+      /** Angle between bullets. */
       angle = 0.05;
 
       bullets.push(
@@ -562,22 +634,22 @@ var update = function ( dt ) {
     }
   }
 
-  i = bullets.length - 1;
-
-  for ( ; i >= 0; --i ) {
+  for ( i = bullets.length - 1; i >= 0; --i ) {
     bullet = bullets[ i ];
     bullet[ 0 ] += ( 750 * cos( bullet[ 2 ] ) + bullet[ 3 ][ 0 ] ) * dt;
     bullet[ 1 ] += ( 750 * sin( bullet[ 2 ] ) + bullet[ 3 ][ 1 ] ) * dt;
 
-    // If bullet not out of screen.
+    /** If the bullet is within the map. */
     if ( bullet[ 0 ] >= 0 &&
       bullet[ 0 ] <= w &&
       bullet[ 1 ] >= 0 &&
       bullet[ 1 ] <= h )
     {
+      /** Then for all asteroids, check... */
       for ( j = asteroids.length - 1; j >= 0; --j ) {
         asteroid = asteroids[ j ];
 
+        /** ... If bullet hits the asteroid. */
         if ( intersects[ 'circle-point' ](
           asteroid.location[ 0 ],
           asteroid.location[ 1 ],
@@ -586,23 +658,28 @@ var update = function ( dt ) {
         {
           destroyed = asteroid.destroy();
 
+          /** If the asteroid was large enough and returned its fragments. */
           if ( destroyed ) {
+            /** Then add them. */
             _.merge( asteroids, destroyed );
           }
 
+          /** Remove the asteroid. */
           asteroids.splice( j, 1 );
+          /** Remove the bullet. */
           bullets.splice( i, 1 );
           break;
         }
       }
 
-    // Else remove it.
+    /** Otherwise, remove the bullet. */
     } else {
       bullets.splice( i, 1 );
     }
   }
 
   ship.update( dt );
+  /** Simulating inertia. */
   ship.velocity.mult( 0.9875 );
 
   camera
@@ -633,15 +710,19 @@ var render = function () {
     .backgroundColor( 0 )
     .save()
     .setTransformFromCamera( camera )
+    .stroke( true )
+    .noFill()
     .rect( 0, 0, w, h );
 
   ship.show();
 
   for ( ; i >= 0; --i ) {
     asteroid = asteroids[ i ].show();
+    /** Zoom out the minimap. */
     x = ( asteroid.location[ 0 ] - shipX ) * 0.06;
     y = ( asteroid.location[ 1 ] - shipY ) * 0.06;
 
+    /** If the point can be placed within the minimap. */
     if ( sqrt( x * x + y * y ) < r ) {
       minimap.point( r + x, r + y );
     }
@@ -657,12 +738,12 @@ var render = function () {
     }
   }
 
-  i = bullets.length - 1;
+  renderer
+    .noStroke()
+    .fill( true );
 
-  for ( ; i >= 0; --i ) {
-    renderer.polygon(
-      bullets[ i ][ 0 ],
-      bullets[ i ][ 1 ], 3, 3 );
+  for ( i = bullets.length - 1; i >= 0; --i ) {
+    renderer.arc( bullets[ i ][ 0 ], bullets[ i ][ 1 ], 2 );
   }
 };
 
@@ -748,7 +829,7 @@ _( function ( _ ) {
     ],
 
     scale: [
-      0.6
+      1
     ]
   } );
 
@@ -761,7 +842,15 @@ _( function ( _ ) {
     minimap.canvas.style.left = '16px';
 
   if ( touchable ) {
-    stick = new Stick( 0.5, 0.5, [ 0, 0, 0.5, 0.5 ] );
+    stick = new Stick( {
+      touch_zone: [
+        0, 0, 1, 1
+      ],
+
+      x: 0.5,
+      y: 0.5
+    } );
+
     button = new Button( -0.5, 0.5 );
   } else {
     _( document.body ).addClass( 'desktop' );

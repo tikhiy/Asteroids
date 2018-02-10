@@ -1449,11 +1449,7 @@ var shape = function ( draw, no_fill, no_stroke ) {
       }
 
       if ( stroke ) {
-        if ( close ) {
-          context.closePath();
-        }
-
-        this._stroke();
+        this._stroke( close );
       }
     }
   };
@@ -1786,8 +1782,7 @@ Renderer2D.prototype.arc = function ( x, y, r, begin, end, anticlockwise ) {
     }
 
     if ( this.style.doStroke ) {
-      this.context.closePath();
-      this._stroke();
+      this._stroke( true );
     }
   } else {
     this.context.arc( x, y, r, begin, end, anticlockwise );
@@ -1883,8 +1878,7 @@ Renderer2D.prototype._polygon = function ( x, y, rx, ry, n, a, degrees ) {
   context.save();
   context.translate( x, y );
   context.rotate( degrees ? a * pi / 180 : a );
-  context.scale( rx, ry );
-  this.drawVertices( polygon, polygon.length >> 1 );
+  this.drawVertices( polygon, polygon.length >> 1, rx, ry );
   context.restore();
   return this;
 };
@@ -1906,19 +1900,24 @@ Renderer2D.prototype.polygon = function ( x, y, r, n, a ) {
   return this;
 };
 
-Renderer2D.prototype.drawVertices = function ( data, length ) {
+Renderer2D.prototype.drawVertices = function ( data, length, _rx, _ry ) {
   var context, i;
 
   if ( length <= 2 ) {
     return this;
   }
 
+  // this is a temporary (hopeful) solution (incomplete)
+  if ( _rx == null ) {
+    _rx = _ry = 1;
+  }
+
   context = this.context;
   context.beginPath();
-  context.moveTo( data[ 0 ], data[ 1 ] );
+  context.moveTo( data[ 0 ] * _rx, data[ 1 ] * _ry );
 
   for ( i = 2, length *= 2; i < length; i += 2 ) {
-    context.lineTo( data[ i ], data[ i + 1 ] );
+    context.lineTo( data[ i ] * _rx, data[ i + 1 ] * _ry );
   }
 
   if ( this.style.doFill ) {
