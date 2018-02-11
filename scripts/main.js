@@ -401,17 +401,17 @@ var Asteroid = function ( x, y, renderer ) {
         step = 2 * pi / n,
         vertices = this.vertices =
           new Float32Array( ( n + 1 ) * 2 ),
+        r = this.radius = _.random( 15, 30 ),
         padding;
 
     for ( ; n >= 0; --n ) {
       padding = _.random( 0.5, 1 );
-      vertices[     n * 2 ] = cos( n * step ) * padding;
-      vertices[ 1 + n * 2 ] = sin( n * step ) * padding;
+      vertices[     n * 2 ] = r * cos( n * step ) * padding;
+      vertices[ 1 + n * 2 ] = r * sin( n * step ) * padding;
     }
 
     this.renderer = renderer;
     this.location = v6.vec2( x, y );
-    this.radius = _.random( 15, 30 );
   } else {
     this.renderer = x.renderer;
     this.location = x.location.copy();
@@ -454,7 +454,6 @@ Asteroid.prototype = {
       this.renderer
         .save()
         .translate( x, y )
-        .scale( r, r )
         .drawVertices( this.vertices, this.vertices.length * 0.5 )
         .restore();
     }
@@ -816,7 +815,9 @@ var ui = {
 };
 
 _( function ( _ ) {
-  renderer = new v6.RendererWebGL()
+  renderer = v6( {
+    mode: mode
+  } )
     .stroke( 255 )
     .fill( 255 )
     .lineWidth( 2 );
