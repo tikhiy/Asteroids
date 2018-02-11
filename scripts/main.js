@@ -213,8 +213,8 @@ if ( touchable ) {
     },
 
     colors: {
-      'false': v6.rgba( 255, 0.5 ),
-      'true': v6.rgba( 255 )
+      'false': v6.rgba( 255, 0.3 ),
+      'true' : v6.rgba( 255, 0.7 )
     },
 
     state: false,
@@ -411,7 +411,7 @@ var Asteroid = function ( x, y, renderer ) {
 
     this.renderer = renderer;
     this.location = v6.vec2( x, y );
-    this.radius = _.random( 25, 49 );
+    this.radius = _.random( 15, 30 );
   } else {
     this.renderer = x.renderer;
     this.location = x.location.copy();
@@ -463,7 +463,7 @@ Asteroid.prototype = {
   },
 
   destroy: function () {
-    return this.radius >= 25 ? [
+    return this.radius >= 15 ? [
       new Asteroid( this ),
       new Asteroid( this )
     ] : null;
@@ -533,8 +533,8 @@ Ship.prototype = {
   },
 
   direction: 0,
-  rx: 15,
-  ry: 10,
+  rx: 9,
+  ry: 6,
   angle: 0,
   accelerationValue: 5,
   constructor: Ship
@@ -824,12 +824,8 @@ _( function ( _ ) {
   camera = renderer.camera( {
     // smooth camera
     speed: [
-      0.05,
-      0.05
-    ],
-
-    scale: [
-      1
+      0.075,
+      0.075
     ]
   } );
 
