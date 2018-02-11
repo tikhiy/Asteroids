@@ -35,17 +35,6 @@ var KEYS = {
   RARR : 39
 };
 
-var clone_array = function ( array ) {
-  var i = array.length,
-      clone = new array.constructor( i );
-
-  while ( --i >= 0 ) {
-    clone[ i ] = array[ i ];
-  }
-
-  return clone;
-};
-
 var intersects = {
   'rectangle-point': function ( x1, y1, w1, h1, x2, y2 ) {
     return x2 < x1 + w1 && x2 > x1 && y2 < y1 + h1 && y2 > y1;
@@ -396,27 +385,26 @@ _( window )
   } );
 
 var Asteroid = function ( x, y, renderer ) {
+  var n = _.random( 16, 25 ),
+      step = 2 * pi / n,
+      vertices = this.vertices =
+        new Float32Array( ( n + 1 ) * 2 ),
+      padding;
+
   if ( typeof x != 'object' ) {
-    var n = _.random( 16, 25 ),
-        step = 2 * pi / n,
-        vertices = this.vertices =
-          new Float32Array( ( n + 1 ) * 2 ),
-        r = this.radius = _.random( 15, 30 ),
-        padding;
-
-    for ( ; n >= 0; --n ) {
-      padding = _.random( 0.5, 1 );
-      vertices[     n * 2 ] = r * cos( n * step ) * padding;
-      vertices[ 1 + n * 2 ] = r * sin( n * step ) * padding;
-    }
-
+    this.radius = _.random( 15, 30 );
     this.renderer = renderer;
     this.location = v6.vec2( x, y );
   } else {
+    this.radius = x.radius * 0.5;
     this.renderer = x.renderer;
     this.location = x.location.copy();
-    this.vertices = clone_array( x.vertices );
-    this.radius = x.radius * 0.5;
+  }
+
+  for ( ; n >= 0; --n ) {
+    padding = _.random( 0.5, 1 );
+    vertices[     n * 2 ] = this.radius * cos( n * step ) * padding;
+    vertices[ 1 + n * 2 ] = this.radius * sin( n * step ) * padding;
   }
 
   this.velocity = v6.Vector2D.random().mult( 5 );
